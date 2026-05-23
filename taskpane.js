@@ -83,31 +83,11 @@ Office.onReady(() => {
       const sheet =
         context.workbook.worksheets.getActiveWorksheet();
 
-
-      // ====================================================
-      // 🔥 قراءة الشيت على أجزاء (حل مشكلة Payload)
-      // ====================================================
-
-      const used = sheet.getUsedRange();
-      used.load("rowCount");
+      const range = sheet.getUsedRange();
+      range.load(["values", "rowIndex", "columnCount"]);
       await context.sync();
 
-      const rowCount = used.rowCount;
-
-      const chunkSize = 500;
-
-      let values = [];
-
-      for (let start = 0; start < rowCount; start += chunkSize) {
-
-        const range = sheet.getRangeByIndexes(start, 1, Math.min(chunkSize, rowCount - start), 2);
-
-        range.load("values");
-
-        await context.sync();
-
-        values = values.concat(range.values);
-      }
+      const values = range.values;
 
 
       let showRows = [];
@@ -122,13 +102,13 @@ Office.onReady(() => {
       const nameToNumbers = new Map();
 
 
-      // 📥 قراءة البيانات (B = name, C = number)
+      // 📥 قراءة الشيت (B = name / C = number)
       for (let i = 0; i < values.length; i++) {
 
         const row = values[i];
 
-        const name = String(row[0] || "").toLowerCase().trim();
-        const number = getLast6(row[1]);
+        const name = String(row[1] || "").toLowerCase().trim();
+        const number = getLast6(row[2]);
 
         if (!name && !number) continue;
 
@@ -148,8 +128,8 @@ Office.onReady(() => {
 
         const row = values[i];
 
-        const name = String(row[0] || "").toLowerCase().trim();
-        const number = getLast6(row[1]);
+        const name = String(row[1] || "").toLowerCase().trim();
+        const number = getLast6(row[2]);
 
         let found = false;
 
@@ -225,28 +205,34 @@ Office.onReady(() => {
 
 
       // ====================================================
-      // 👁️ إظهار/إخفاء الصفوف (آمن وسريع)
+      // ⚡ FAST HIDE / SHOW (Optimized)
       // ====================================================
 
       const totalRows = values.length;
 
-      // إظهار الكل
-      for (let i = 0; i < totalRows; i++) {
-        sheet.getRangeByIndexes(i, 0, 1, 3).rowHidden = false;
-      }
+      const showSet = new Set(showRows);
 
+      // إظهار الكل مرة واحدة
+      sheet.getRangeByIndexes(0, 0, totalRows, 3).rowHidden = false;
       await context.sync();
 
-      // إخفاء غير المطابق
-      for (let i = 0; i < totalRows; i++) {
+      // إخفاء غير المطابق على دفعات
+      const batchSize = 300;
 
-        if (!showRows.includes(i)) {
+      for (let i = 0; i < totalRows; i += batchSize) {
 
-          sheet.getRangeByIndexes(i, 0, 1, 3).rowHidden = true;
+        const end = Math.min(i + batchSize, totalRows);
+
+        for (let j = i; j < end; j++) {
+
+          if (!showSet.has(j)) {
+
+            sheet.getRangeByIndexes(j, 0, 1, 3).rowHidden = true;
+          }
         }
-      }
 
-      await context.sync();
+        await context.sync();
+      }
 
 
       // 📦 التقرير
@@ -293,7 +279,9 @@ Office.onReady(() => {
 
         this.innerText = "✔️";
 
-        setTimeout(() => this.innerText = "📋", 1200);
+        setTimeout(() => {
+          this.innerText = "📋";
+        }, 1200);
       };
 
       await context.sync();
