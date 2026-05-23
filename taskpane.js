@@ -7,10 +7,15 @@ Office.onReady(async () => {
       .slice(-6);
   }
 
+  // =========================
+  // ⚡ CACHE DATA
+  // =========================
   let DATA = [];
 
   async function loadData() {
+
     await Excel.run(async (context) => {
+
       const sheet = context.workbook.worksheets.getActiveWorksheet();
       const range = sheet.getUsedRange();
 
@@ -20,56 +25,88 @@ Office.onReady(async () => {
       DATA = range.values || [];
     });
 
-    setStatus("جاهز للبحث 🚀");
+    document.getElementById("liveStatus").innerText = "جاهز للبحث 🚀";
   }
 
   await loadData();
 
   // =========================
-  // STATUS
+  // 📊 COUNTER (FIXED - NO STATUS CHANGE)
   // =========================
-  function setStatus(text) {
-    document.getElementById("liveStatus").innerText = text;
+  function updateCounter() {
+
+    const nameBox = document.getElementById("nameBox");
+    const numberBox = document.getElementById("numberBox");
+
+    const names =
+      (nameBox.value || "")
+        .split("\n")
+        .map(v => v.trim())
+        .filter(Boolean);
+
+    const numbers =
+      (numberBox.value || "")
+        .split("\n")
+        .map(v => v.trim())
+        .filter(Boolean);
+
+    document.getElementById("inputCount").innerText =
+      names.length + numbers.length;
   }
 
-  // =========================
-  // REPORT BUTTON
-  // =========================
-  function showReportBtn() {
-    document.getElementById("reportBtn").style.display = "inline-block";
-  }
+  window.updateCounter = updateCounter;
 
-  function hideReportBtn() {
-    document.getElementById("reportBtn").style.display = "none";
-  }
-
-  document.getElementById("reportBtn").addEventListener("click", function () {
-
-    const rows = [];
-
-    const names = document.getElementById("nameBox").value
-      .split("\n").map(v => v.trim()).filter(Boolean);
-
-    const numbers = document.getElementById("numberBox").value
-      .split("\n").map(v => v.trim()).filter(Boolean);
-
-    names.forEach(n => rows.push({ type: "اسم", value: n }));
-    numbers.forEach(n => rows.push({ type: "رقم", value: n }));
-
-    if (!rows.length) return;
-
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(wb, ws, "Report");
-
-    XLSX.writeFile(wb, "report.xlsx");
-
-    setStatus("تم إنشاء التقرير 📄");
-  });
+  document.getElementById("nameBox").addEventListener("input", updateCounter);
+  document.getElementById("numberBox").addEventListener("input", updateCounter);
 
   // =========================
-  // SEARCH
+  // 📁 FILE IMPORT (FIXED)
+  // =========================
+  document.getElementById("fileInput")
+    .addEventListener("change", function (e) {
+
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+
+        try {
+          const workbook = XLSX.read(event.target.result, { type: "binary" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }).slice(1);
+
+          document.getElementById("nameBox").value =
+            rows.map(r => r[0] || "").join("\n");
+
+          document.getElementById("numberBox").value =
+            rows.map(r => r[1] || "").join("\n");
+
+          updateCounter();
+
+          // 📊 رجع الحالة زي ما كانت
+          document.getElementById("liveStatus").innerText =
+            "جاهز للبحث 🚀";
+
+          e.target.value = "";
+
+        } catch (err) {
+
+          console.error(err);
+
+          document.getElementById("liveStatus").innerText =
+            "خطأ في قراءة الملف ❌";
+
+          e.target.value = "";
+        }
+      };
+
+      reader.readAsBinaryString(file);
+    });
+
+  // =========================
+  // 🔍 SEARCH
   // =========================
   window.searchNumber = function () {
 
@@ -96,7 +133,8 @@ Office.onReady(async () => {
       const row = DATA[i];
 
       const name = (row[1] || "").toLowerCase().trim();
-      const last6 = getLast6(row[2]);
+      const fullNumber = (row[2] || "").toString();
+      const last6 = getLast6(fullNumber);
 
       const nameMatch =
         nameSet.size === 0 || nameSet.has(name);
@@ -109,51 +147,26 @@ Office.onReady(async () => {
       }
     }
 
-    const hasInput = nameSet.size > 0 || numberSet.size > 0;
-
-    if (!hasInput) {
-      setStatus("جاهز للبحث 🚀");
-      hideReportBtn();
-      renderResults(results);
-      return;
-    }
-
-    // ❌ NO RESULTS
-    if (results.length === 0) {
-      setStatus("غير موجود في الشيت ❌");
-      showReportBtn();
-      renderResults([]);
-      return;
-    }
-
-    // ✔ RESULTS
-    setStatus(`${results.length} نتيجة`);
-    hideReportBtn();
-
-    const allNamesMatched = [...nameSet].every(n =>
-      results.some(r => (r[1] || "").toLowerCase().trim() === n)
-    );
-
-    const allNumbersMatched = [...numberSet].every(n =>
-      results.some(r => getLast6(r[2]) === n)
-    );
-
-    if (allNamesMatched && allNumbersMatched) {
-      setStatus(`${results.length} نتيجة - كل البيانات صحيحة ✅`);
-    }
+    document.getElementById("liveStatus").innerText =
+      `${results.length} نتيجة`;
 
     renderResults(results);
   };
 
   // =========================
-  // TABLE
+  // 📊 RENDER RESULTS
   // =========================
   function renderResults(data) {
 
     const box = document.getElementById("resultsTable");
 
     if (!data.length) {
-      box.innerHTML = `<div style="padding:10px;color:#b00020;">❌ لا توجد نتائج</div>`;
+
+      box.innerHTML = `
+        <div style="padding:12px;font-weight:bold;color:#b00020;">
+          ❌ لا توجد نتائج
+        </div>
+      `;
       return;
     }
 
@@ -163,49 +176,49 @@ Office.onReady(async () => {
           <tr style="background:#f3f6fb;">
             <th>#</th>
             <th>الاسم</th>
-            <th>الرقم</th>
+            <th>رقم الحساب الكامل</th>
           </tr>
         </thead>
         <tbody>
     `;
 
-    data.forEach((r, i) => {
+    for (let i = 0; i < data.length; i++) {
+
       html += `
         <tr>
           <td>${i + 1}</td>
-          <td>${r[1] || ""}</td>
-          <td>${r[2] || ""}</td>
+          <td>${data[i][1] || ""}</td>
+          <td>${data[i][2] || ""}</td>
         </tr>
       `;
-    });
+    }
 
     html += `</tbody></table>`;
+
     box.innerHTML = html;
   }
 
   // =========================
-  // CLEAR
+  // 🧹 CLEAR
   // =========================
   window.clearBox = function () {
 
     document.getElementById("nameBox").value = "";
     document.getElementById("numberBox").value = "";
-
-    document.getElementById("inputCount").innerText = "0";
-
-    setStatus("جاهز للبحث 🚀");
-    hideReportBtn();
-
     document.getElementById("resultsTable").innerHTML =
       `<div style="padding:10px;color:#888;">لا توجد نتائج بعد</div>`;
+
+    document.getElementById("inputCount").innerText = "0";
+    document.getElementById("liveStatus").innerText = "جاهز للبحث 🚀";
   };
 
   // =========================
-  // SHOW ALL
+  // 👁️ SHOW ALL
   // =========================
   window.showAllRows = async function () {
 
     await Excel.run(async (context) => {
+
       const sheet = context.workbook.worksheets.getActiveWorksheet();
       const used = sheet.getUsedRange();
 
@@ -213,9 +226,9 @@ Office.onReady(async () => {
       await context.sync();
 
       used.rowHidden = false;
-    });
 
-    setStatus("جاهز للبحث 🚀");
+      document.getElementById("liveStatus").innerText = "جاهز للبحث 🚀";
+    });
   };
 
 });
