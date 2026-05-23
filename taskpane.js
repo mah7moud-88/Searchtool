@@ -56,6 +56,7 @@ Office.onReady(() => {
     });
 
 
+  // 🔍 البحث
   window.searchNumber = async function () {
 
     await Excel.run(async (context) => {
@@ -82,13 +83,24 @@ Office.onReady(() => {
       const sheet =
         context.workbook.worksheets.getActiveWorksheet();
 
-      const range = sheet.getUsedRange();
 
-      range.load(["values", "rowIndex", "columnCount"]);
+      // ====================================================
+      // ✅ الحل القوي: قراءة B و C مباشرة
+      // ====================================================
+
+      const used = sheet.getUsedRange();
+      used.load("rowCount");
+      await context.sync();
+
+      const rowCount = used.rowCount;
+
+      const range = sheet.getRangeByIndexes(0, 1, rowCount, 2);
+      range.load("values");
 
       await context.sync();
 
       const values = range.values;
+
 
       let showRows = [];
       let foundNames = new Set();
@@ -101,13 +113,14 @@ Office.onReady(() => {
       const sheetNumberSet = new Set();
       const nameToNumbers = new Map();
 
-      // 📥 قراءة الشيت (B الاسم - C الرقم)
+
+      // 📥 قراءة البيانات (B = اسم / C = رقم)
       for (let i = 0; i < values.length; i++) {
 
         const row = values[i];
 
-        const name = String(row[1] || "").toLowerCase().trim();
-        const number = getLast6(row[2]);
+        const name = String(row[0] || "").toLowerCase().trim();
+        const number = getLast6(row[1]);
 
         if (!name && !number) continue;
 
@@ -121,13 +134,14 @@ Office.onReady(() => {
         nameToNumbers.get(name).add(number);
       }
 
+
       // 🔍 البحث
       for (let i = 0; i < values.length; i++) {
 
         const row = values[i];
 
-        const name = String(row[1] || "").toLowerCase().trim();
-        const number = getLast6(row[2]);
+        const name = String(row[0] || "").toLowerCase().trim();
+        const number = getLast6(row[1]);
 
         let found = false;
 
@@ -149,6 +163,7 @@ Office.onReady(() => {
         }
       }
 
+
       // ❌ غير موجود
       nameSet.forEach(name => {
         if (!sheetNameSet.has(name)) {
@@ -162,6 +177,7 @@ Office.onReady(() => {
           notFound.push(`الرقم غير موجود: ${fullNum}`);
         }
       });
+
 
       // ⚠️ غير مطابق
       const mismatchSet = new Set();
@@ -191,39 +207,33 @@ Office.onReady(() => {
 
       mismatch = Array.from(mismatchSet);
 
+
+      // 📊 الحالة
       const totalInputs = nameSet.size + numberSet.size;
       const totalFound = foundNames.size + foundNumbers.size;
 
       document.getElementById("liveStatus").innerText =
         `${totalFound} من ${totalInputs} مطابق`;
 
+
       // ====================================================
-      // ✅ الحل النهائي لإخفاء/إظهار الصفوف
+      // 👁️ إظهار/إخفاء الصفوف (حل ثابت)
       // ====================================================
 
       const totalRows = values.length;
 
-      // إظهار كل الصفوف أولاً
-      sheet.getRangeByIndexes(
-        range.rowIndex,
-        0,
-        totalRows,
-        range.columnCount
-      ).rowHidden = false;
+      // إظهار الكل أولاً
+      sheet.getRangeByIndexes(0, 0, totalRows, 3).rowHidden = false;
 
-      // إخفاء غير المطابق فقط
+      // إخفاء غير المطابق
       for (let i = 0; i < totalRows; i++) {
 
         if (!showRows.includes(i)) {
 
-          sheet.getRangeByIndexes(
-            range.rowIndex + i,
-            0,
-            1,
-            range.columnCount
-          ).rowHidden = true;
+          sheet.getRangeByIndexes(i, 0, 1, 3).rowHidden = true;
         }
       }
+
 
       // 📦 التقرير
       const missingBox = document.getElementById("missingBox");
@@ -257,6 +267,7 @@ Office.onReady(() => {
         }
       `;
 
+
       document.getElementById("copyAllBtn").onclick = function () {
 
         const text = [
@@ -278,13 +289,15 @@ Office.onReady(() => {
     });
   };
 
+
+  // 👁️ إظهار كل الصفوف
   window.showAllRows = async function () {
 
     await Excel.run(async (context) => {
 
       const sheet = context.workbook.worksheets.getActiveWorksheet();
-      const used = sheet.getUsedRange();
 
+      const used = sheet.getUsedRange();
       used.load();
       await context.sync();
 
@@ -294,6 +307,8 @@ Office.onReady(() => {
     });
   };
 
+
+  // 🧹 مسح
   window.clearBox = function () {
 
     document.getElementById("nameBox").value = "";
