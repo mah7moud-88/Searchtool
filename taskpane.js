@@ -5,7 +5,6 @@ Office.onReady(() => {
     return v.slice(-6);
   }
 
-  // 🔢 تحديث العداد
   window.updateCounter = function () {
 
     const names =
@@ -40,22 +39,13 @@ Office.onReady(() => {
 
       reader.onload = function (event) {
 
-        const workbook = XLSX.read(
-          event.target.result,
-          { type: "binary" }
-        );
+        const workbook = XLSX.read(event.target.result, { type: "binary" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }).slice(1);
 
-        const sheet =
-          workbook.Sheets[workbook.SheetNames[0]];
-
-        const rows =
-          XLSX.utils.sheet_to_json(sheet, { header: 1 }).slice(1);
-
-        // العمود A للأسماء
         document.getElementById("nameBox").value =
           rows.map(r => r[0] || "").join("\n");
 
-        // العمود B للأرقام
         document.getElementById("numberBox").value =
           rows.map(r => r[1] || "").join("\n");
 
@@ -66,12 +56,10 @@ Office.onReady(() => {
     });
 
 
-  // 🔍 البحث
   window.searchNumber = async function () {
 
     await Excel.run(async (context) => {
 
-      // 🧾 أسماء الإدخال
       const nameSet = new Set(
         document.getElementById("nameBox")
           .value
@@ -81,7 +69,6 @@ Office.onReady(() => {
           .filter(Boolean)
       );
 
-      // 🧾 أرقام الإدخال
       const rawNumbers =
         document.getElementById("numberBox")
           .value
@@ -92,7 +79,6 @@ Office.onReady(() => {
       const numberSet =
         new Set(rawNumbers.map(v => getLast6(v)));
 
-      // 📄 الشيت الحالي
       const sheet =
         context.workbook.worksheets.getActiveWorksheet();
 
@@ -105,7 +91,6 @@ Office.onReady(() => {
       const values = range.values;
 
       let showRows = [];
-
       let foundNames = new Set();
       let foundNumbers = new Set();
 
@@ -114,26 +99,15 @@ Office.onReady(() => {
 
       const sheetNameSet = new Set();
       const sheetNumberSet = new Set();
-
       const nameToNumbers = new Map();
 
-      // ====================================================
-      // 📥 قراءة بيانات الشيت
-      // B = الاسم = index 1
-      // C = الرقم = index 2
-      // ====================================================
-
+      // 📥 قراءة الشيت (B الاسم - C الرقم)
       for (let i = 0; i < values.length; i++) {
 
         const row = values[i];
 
-        const name =
-          String(row[1] || "")
-            .toLowerCase()
-            .trim();
-
-        const number =
-          getLast6(String(row[2] || ""));
+        const name = String(row[1] || "").toLowerCase().trim();
+        const number = getLast6(row[2]);
 
         if (!name && !number) continue;
 
@@ -147,96 +121,49 @@ Office.onReady(() => {
         nameToNumbers.get(name).add(number);
       }
 
-
-      // ====================================================
       // 🔍 البحث
-      // ====================================================
-
       for (let i = 0; i < values.length; i++) {
 
         const row = values[i];
 
-        const name =
-          String(row[1] || "")
-            .toLowerCase()
-            .trim();
-
-        const number =
-          getLast6(String(row[2] || ""));
+        const name = String(row[1] || "").toLowerCase().trim();
+        const number = getLast6(row[2]);
 
         let found = false;
 
-        // اسم + رقم
         if (nameSet.size && numberSet.size) {
-
-          found =
-            nameSet.has(name) &&
-            numberSet.has(number);
+          found = nameSet.has(name) && numberSet.has(number);
         }
-
-        // اسم فقط
         else if (nameSet.size) {
-
           found = nameSet.has(name);
         }
-
-        // رقم فقط
-        else if (numberSet.size) {
-
+        else {
           found = numberSet.has(number);
         }
 
         if (found) {
-
           showRows.push(i);
 
-          if (nameSet.has(name)) {
-            foundNames.add(name);
-          }
-
-          if (numberSet.has(number)) {
-            foundNumbers.add(number);
-          }
+          if (nameSet.has(name)) foundNames.add(name);
+          if (numberSet.has(number)) foundNumbers.add(number);
         }
       }
 
-
-      // ====================================================
-      // ❌ أسماء غير موجودة
-      // ====================================================
-
+      // ❌ غير موجود
       nameSet.forEach(name => {
-
         if (!sheetNameSet.has(name)) {
-
-          notFound.push(
-            `الاسم غير موجود: ${name}`
-          );
+          notFound.push(`الاسم غير موجود: ${name}`);
         }
       });
-
-
-      // ====================================================
-      // ❌ أرقام غير موجودة
-      // ====================================================
 
       rawNumbers.forEach(fullNum => {
-
         const last6 = getLast6(fullNum);
-
         if (!sheetNumberSet.has(last6)) {
-
-          notFound.push(
-            `الرقم غير موجود: ${fullNum}`
-          );
+          notFound.push(`الرقم غير موجود: ${fullNum}`);
         }
       });
 
-
-      // ====================================================
-      // ⚠️ الرقم غير مطابق للاسم
-      // ====================================================
-
+      // ⚠️ غير مطابق
       const mismatchSet = new Set();
 
       rawNumbers.forEach(fullNum => {
@@ -251,83 +178,59 @@ Office.onReady(() => {
 
           if (!nameToNumbers.has(inputName)) continue;
 
-          const nums =
-            nameToNumbers.get(inputName);
-
-          if (nums.has(last6)) {
-
+          if (nameToNumbers.get(inputName).has(last6)) {
             matched = true;
             break;
           }
         }
 
         if (!matched) {
-
-          mismatchSet.add(
-            `❌ الرقم غير مطابق للاسم\n🔢 الرقم: ${fullNum}`
-          );
+          mismatchSet.add(`❌ الرقم غير مطابق للاسم\n🔢 الرقم: ${fullNum}`);
         }
       });
 
       mismatch = Array.from(mismatchSet);
 
-
-      // ====================================================
-      // 📊 الحالة
-      // ====================================================
-
-      const totalInputs =
-        nameSet.size + numberSet.size;
-
-      const totalFound =
-        foundNames.size + foundNumbers.size;
+      const totalInputs = nameSet.size + numberSet.size;
+      const totalFound = foundNames.size + foundNumbers.size;
 
       document.getElementById("liveStatus").innerText =
         `${totalFound} من ${totalInputs} مطابق`;
 
-
       // ====================================================
-      // 👁️ إخفاء كل الصفوف
-      // ====================================================
-
-      const used = sheet.getUsedRange();
-
-      used.load();
-
-      await context.sync();
-
-      used.rowHidden = true;
-
-
-      // ====================================================
-      // 👁️ إظهار النتائج فقط
+      // ✅ الحل النهائي لإخفاء/إظهار الصفوف
       // ====================================================
 
-      showRows.forEach(i => {
+      const totalRows = values.length;
 
-        const r =
+      // إظهار كل الصفوف أولاً
+      sheet.getRangeByIndexes(
+        range.rowIndex,
+        0,
+        totalRows,
+        range.columnCount
+      ).rowHidden = false;
+
+      // إخفاء غير المطابق فقط
+      for (let i = 0; i < totalRows; i++) {
+
+        if (!showRows.includes(i)) {
+
           sheet.getRangeByIndexes(
             range.rowIndex + i,
             0,
             1,
             range.columnCount
-          );
+          ).rowHidden = true;
+        }
+      }
 
-        r.rowHidden = false;
-      });
-
-
-      // ====================================================
       // 📦 التقرير
-      // ====================================================
-
-      const missingBox =
-        document.getElementById("missingBox");
+      const missingBox = document.getElementById("missingBox");
 
       missingBox.style.display = "block";
 
       missingBox.innerHTML = `
-
         <div style="display:flex;justify-content:space-between;align-items:center;font-weight:bold;margin-bottom:8px;">
           <span>📌 تقرير التحقق</span>
           <span id="copyAllBtn" style="cursor:pointer;font-size:18px;">📋</span>
@@ -335,105 +238,68 @@ Office.onReady(() => {
 
         ${
           mismatch.length
-            ? `
-              <div style="color:#b97700;font-weight:bold;">
-                ⚠️ غير مطابق:
-              </div>
-
-              ${mismatch.map(v => `<div>• ${v}</div>`).join("")}
-            `
+            ? `<div style="color:#b97700;font-weight:bold;">⚠️ غير مطابق:</div>
+               ${mismatch.map(v => `<div>• ${v}</div>`).join("")}`
             : ""
         }
 
         ${
           notFound.length
-            ? `
-              <div style="color:#b00000;font-weight:bold;margin-top:10px;">
-                ❌ غير موجود:
-              </div>
-
-              ${notFound.map(v => `<div>• ${v}</div>`).join("")}
-            `
+            ? `<div style="color:#b00000;font-weight:bold;margin-top:10px;">❌ غير موجود:</div>
+               ${notFound.map(v => `<div>• ${v}</div>`).join("")}`
             : ""
         }
 
         ${
           !notFound.length && !mismatch.length
-            ? `
-              <div style="color:#1a7f37;font-weight:bold;">
-                ✅ كل البيانات صحيحة
-              </div>
-            `
+            ? `<div style="color:#1a7f37;font-weight:bold;">✅ كل البيانات صحيحة</div>`
             : ""
         }
       `;
 
+      document.getElementById("copyAllBtn").onclick = function () {
 
-      // 📋 نسخ التقرير
-      document.getElementById("copyAllBtn").onclick =
-        function () {
+        const text = [
+          ...mismatch.map(v => "⚠️ " + v),
+          ...notFound.map(v => "❌ " + v)
+        ].join("\n");
 
-          const text = [
+        if (!text) return;
 
-            ...mismatch.map(v => "⚠️ " + v),
+        navigator.clipboard.writeText(text);
+        this.innerText = "✔️";
 
-            ...notFound.map(v => "❌ " + v)
-
-          ].join("\n");
-
-          if (!text) return;
-
-          navigator.clipboard.writeText(text);
-
-          this.innerText = "✔️";
-
-          setTimeout(() => {
-
-            this.innerText = "📋";
-
-          }, 1200);
-        };
+        setTimeout(() => {
+          this.innerText = "📋";
+        }, 1200);
+      };
 
       await context.sync();
     });
   };
 
-
-  // 👁️ إظهار كل الصفوف
   window.showAllRows = async function () {
 
     await Excel.run(async (context) => {
 
-      const sheet =
-        context.workbook.worksheets.getActiveWorksheet();
-
-      const used =
-        sheet.getUsedRange();
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      const used = sheet.getUsedRange();
 
       used.load();
-
       await context.sync();
 
       used.rowHidden = false;
 
-      document.getElementById("liveStatus").innerText =
-        "جاهز للبحث";
+      document.getElementById("liveStatus").innerText = "جاهز للبحث";
     });
   };
 
-
-  // 🧹 مسح
   window.clearBox = function () {
 
     document.getElementById("nameBox").value = "";
-
     document.getElementById("numberBox").value = "";
-
-    document.getElementById("missingBox").style.display =
-      "none";
-
-    document.getElementById("liveStatus").innerText =
-      "جاهز للبحث";
+    document.getElementById("missingBox").style.display = "none";
+    document.getElementById("liveStatus").innerText = "جاهز للبحث";
 
     updateCounter();
   };
