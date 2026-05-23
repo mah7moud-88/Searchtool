@@ -83,12 +83,32 @@ Office.onReady(() => {
       const sheet =
         context.workbook.worksheets.getActiveWorksheet();
 
-      const range = sheet.getUsedRange();
-      range.load(["values", "rowIndex", "columnCount"]);
 
+      // ====================================================
+      // 🔥 قراءة الشيت على أجزاء (حل مشكلة Payload)
+      // ====================================================
+
+      const used = sheet.getUsedRange();
+      used.load("rowCount");
       await context.sync();
 
-      const values = range.values;
+      const rowCount = used.rowCount;
+
+      const chunkSize = 500;
+
+      let values = [];
+
+      for (let start = 0; start < rowCount; start += chunkSize) {
+
+        const range = sheet.getRangeByIndexes(start, 1, Math.min(chunkSize, rowCount - start), 2);
+
+        range.load("values");
+
+        await context.sync();
+
+        values = values.concat(range.values);
+      }
+
 
       let showRows = [];
       let foundNames = new Set();
@@ -102,13 +122,13 @@ Office.onReady(() => {
       const nameToNumbers = new Map();
 
 
-      // 📥 قراءة الشيت (B الاسم - C الرقم)
+      // 📥 قراءة البيانات (B = name, C = number)
       for (let i = 0; i < values.length; i++) {
 
         const row = values[i];
 
-        const name = String(row[1] || "").toLowerCase().trim();
-        const number = getLast6(row[2]);
+        const name = String(row[0] || "").toLowerCase().trim();
+        const number = getLast6(row[1]);
 
         if (!name && !number) continue;
 
@@ -128,8 +148,8 @@ Office.onReady(() => {
 
         const row = values[i];
 
-        const name = String(row[1] || "").toLowerCase().trim();
-        const number = getLast6(row[2]);
+        const name = String(row[0] || "").toLowerCase().trim();
+        const number = getLast6(row[1]);
 
         let found = false;
 
@@ -196,6 +216,7 @@ Office.onReady(() => {
       mismatch = Array.from(mismatchSet);
 
 
+      // 📊 الحالة
       const totalInputs = nameSet.size + numberSet.size;
       const totalFound = foundNames.size + foundNumbers.size;
 
@@ -204,21 +225,19 @@ Office.onReady(() => {
 
 
       // ====================================================
-      // ✅ الحل النهائي (بدون rowHidden batch)
+      // 👁️ إظهار/إخفاء الصفوف (آمن وسريع)
       // ====================================================
-
-      await context.sync();
 
       const totalRows = values.length;
 
-      // إظهار كل الصفوف
+      // إظهار الكل
       for (let i = 0; i < totalRows; i++) {
         sheet.getRangeByIndexes(i, 0, 1, 3).rowHidden = false;
       }
 
       await context.sync();
 
-      // إخفاء غير المطابق فقط
+      // إخفاء غير المطابق
       for (let i = 0; i < totalRows; i++) {
 
         if (!showRows.includes(i)) {
@@ -262,6 +281,7 @@ Office.onReady(() => {
         }
       `;
 
+
       document.getElementById("copyAllBtn").onclick = function () {
 
         const text = [
@@ -269,15 +289,11 @@ Office.onReady(() => {
           ...notFound.map(v => "❌ " + v)
         ].join("\n");
 
-        if (!text) return;
-
         navigator.clipboard.writeText(text);
 
         this.innerText = "✔️";
 
-        setTimeout(() => {
-          this.innerText = "📋";
-        }, 1200);
+        setTimeout(() => this.innerText = "📋", 1200);
       };
 
       await context.sync();
