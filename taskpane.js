@@ -96,12 +96,16 @@ Office.onReady(() => {
       const sheetNumberSet = new Set();
       const nameToNumbers = new Map();
 
+      // ✅ قراءة البيانات من Excel
+      // الاسم من العمود B = index 1
+      // الرقم من العمود C = index 2
+
       for (let i = 0; i < values.length; i++) {
 
         const row = values[i];
 
-        const name = (row[3] || "").toLowerCase();
-        const number = getLast6(row[6]);
+        const name = (row[1] || "").toLowerCase().trim();
+        const number = getLast6(row[2]);
 
         sheetNameSet.add(name);
         sheetNumberSet.add(number);
@@ -109,6 +113,7 @@ Office.onReady(() => {
         if (!nameToNumbers.has(name)) {
           nameToNumbers.set(name, new Set());
         }
+
         nameToNumbers.get(name).add(number);
       }
 
@@ -117,8 +122,8 @@ Office.onReady(() => {
 
         const row = values[i];
 
-        const name = (row[3] || "").toLowerCase();
-        const number = getLast6(row[6]);
+        const name = (row[1] || "").toLowerCase().trim();
+        const number = getLast6(row[2]);
 
         let found = false;
 
@@ -133,12 +138,22 @@ Office.onReady(() => {
         }
 
         if (found) {
+
           showRows.push(i);
+
+          if (nameSet.has(name)) {
+            foundNames.add(name);
+          }
+
+          if (numberSet.has(number)) {
+            foundNumbers.add(number);
+          }
         }
       }
 
       // ❌ الاسم غير موجود
       nameSet.forEach(name => {
+
         if (!sheetNameSet.has(name)) {
           notFound.push(`الاسم غير موجود: ${name}`);
         }
@@ -154,7 +169,7 @@ Office.onReady(() => {
         }
       });
 
-      // ⚠️ ❌ منع التكرار هنا
+      // ⚠️ الرقم غير مطابق للاسم
       const mismatchSet = new Set();
 
       rawNumbers.forEach(fullNum => {
@@ -194,21 +209,23 @@ Office.onReady(() => {
       document.getElementById("liveStatus").innerText =
         `${totalFound} من ${totalInputs} مطابق`;
 
-      // 🚀 إخفاء الصفوف
+      // 🚀 إخفاء كل الصفوف
       const used = sheet.getUsedRange();
       used.load();
       await context.sync();
 
       used.rowHidden = true;
 
-      // 👁️ إظهار النتائج
+      // 👁️ إظهار النتائج فقط
       showRows.forEach(i => {
+
         const r = sheet.getRangeByIndexes(
           range.rowIndex + i,
           0,
           1,
           range.columnCount
         );
+
         r.rowHidden = false;
       });
 
@@ -217,6 +234,7 @@ Office.onReady(() => {
       missingBox.style.display = "block";
 
       missingBox.innerHTML = `
+
         <div style="display:flex;justify-content:space-between;align-items:center;font-weight:bold;margin-bottom:8px;">
           <span>📌 تقرير التحقق</span>
           <span id="copyAllBtn" style="cursor:pointer;font-size:18px;">📋</span>
@@ -255,7 +273,10 @@ Office.onReady(() => {
         navigator.clipboard.writeText(text);
 
         this.innerText = "✔️";
-        setTimeout(() => this.innerText = "📋", 1200);
+
+        setTimeout(() => {
+          this.innerText = "📋";
+        }, 1200);
       };
 
       await context.sync();
@@ -272,6 +293,7 @@ Office.onReady(() => {
 
       const used = sheet.getUsedRange();
       used.load();
+
       await context.sync();
 
       used.rowHidden = false;
@@ -281,13 +303,14 @@ Office.onReady(() => {
   };
 
 
-  // 🧹 مسح
+  // 🧹 مسح البيانات
   window.clearBox = function () {
 
     document.getElementById("nameBox").value = "";
     document.getElementById("numberBox").value = "";
     document.getElementById("missingBox").style.display = "none";
     document.getElementById("liveStatus").innerText = "جاهز للبحث";
+
     updateCounter();
   };
 
