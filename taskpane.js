@@ -1,317 +1,221 @@
-Office.onReady(() => {
+Office.onReady(async () => {
 
   function getLast6(value) {
-    const v = (value || "").toString().replace(/\D/g, "");
-    return v.slice(-6);
+    return (value || "")
+      .toString()
+      .replace(/\D/g, "")
+      .slice(-6);
   }
 
-  window.updateCounter = function () {
+  let DATA = [];
 
-    const names =
-      document.getElementById("nameBox").value
-        .split("\n")
-        .filter(v => v.trim());
+  async function loadData() {
+    await Excel.run(async (context) => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      const range = sheet.getUsedRange();
 
-    const numbers =
-      document.getElementById("numberBox").value
-        .split("\n")
-        .filter(v => v.trim());
+      range.load("values");
+      await context.sync();
 
-    document.getElementById("inputCount").innerText =
-      names.length + numbers.length;
-  };
-
-  document.getElementById("nameBox").addEventListener("input", updateCounter);
-  document.getElementById("numberBox").addEventListener("input", updateCounter);
-
-  // 📁 رفع ملف
-  document.getElementById("fileInput")
-    .addEventListener("change", function (e) {
-
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-
-      reader.onload = function (event) {
-
-        const workbook = XLSX.read(event.target.result, { type: "binary" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }).slice(1);
-
-        document.getElementById("nameBox").value =
-          rows.map(r => r[0] || "").join("\n");
-
-        document.getElementById("numberBox").value =
-          rows.map(r => r[1] || "").join("\n");
-
-        setTimeout(updateCounter, 0);
-      };
-
-      reader.readAsBinaryString(file);
+      DATA = range.values || [];
     });
 
+    setStatus("جاهز للبحث 🚀");
+  }
 
-  // 🔍 البحث
-  window.searchNumber = async function () {
+  await loadData();
 
-    await Excel.run(async (context) => {
+  // =========================
+  // STATUS
+  // =========================
+  function setStatus(text) {
+    document.getElementById("liveStatus").innerText = text;
+  }
 
-      const nameSet = new Set(
-        document.getElementById("nameBox")
-          .value.toLowerCase()
-          .split("\n")
-          .map(v => v.trim())
-          .filter(Boolean)
-      );
+  // =========================
+  // REPORT BUTTON
+  // =========================
+  function showReportBtn() {
+    document.getElementById("reportBtn").style.display = "inline-block";
+  }
 
-      const rawNumbers = document.getElementById("numberBox")
-        .value
+  function hideReportBtn() {
+    document.getElementById("reportBtn").style.display = "none";
+  }
+
+  document.getElementById("reportBtn").addEventListener("click", function () {
+
+    const rows = [];
+
+    const names = document.getElementById("nameBox").value
+      .split("\n").map(v => v.trim()).filter(Boolean);
+
+    const numbers = document.getElementById("numberBox").value
+      .split("\n").map(v => v.trim()).filter(Boolean);
+
+    names.forEach(n => rows.push({ type: "اسم", value: n }));
+    numbers.forEach(n => rows.push({ type: "رقم", value: n }));
+
+    if (!rows.length) return;
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "Report");
+
+    XLSX.writeFile(wb, "report.xlsx");
+
+    setStatus("تم إنشاء التقرير 📄");
+  });
+
+  // =========================
+  // SEARCH
+  // =========================
+  window.searchNumber = function () {
+
+    const nameSet = new Set(
+      document.getElementById("nameBox")
+        .value.toLowerCase()
         .split("\n")
         .map(v => v.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+    );
 
-      const numberSet = new Set(
-        rawNumbers.map(v => getLast6(v))
-      );
+    const numberSet = new Set(
+      document.getElementById("numberBox")
+        .value
+        .split("\n")
+        .map(v => getLast6(v))
+        .filter(v => v.length === 6)
+    );
 
-      const sheet = context.workbook.worksheets.getActiveWorksheet();
-      const range = sheet.getUsedRangeOrNullObject();
+    let results = [];
 
-      range.load(["text", "rowIndex", "columnCount"]);
-      await context.sync();
+    for (let i = 0; i < DATA.length; i++) {
 
-      if (range.isNullObject) return;
+      const row = DATA[i];
 
-      const values = range.text;
+      const name = (row[1] || "").toLowerCase().trim();
+      const last6 = getLast6(row[2]);
 
-      let showRows = [];
-      let foundNames = new Set();
-      let foundNumbers = new Set();
+      const nameMatch =
+        nameSet.size === 0 || nameSet.has(name);
 
-      let notFound = [];
-      let mismatch = [];
+      const numberMatch =
+        numberSet.size === 0 || numberSet.has(last6);
 
-      const sheetNameSet = new Set();
-      const sheetNumberSet = new Set();
-      const nameToNumbers = new Map();
-
-      // ✅ قراءة البيانات من Excel
-      // الاسم من العمود B = index 1
-      // الرقم من العمود C = index 2
-
-      for (let i = 0; i < values.length; i++) {
-
-        const row = values[i];
-
-        const name = (row[1] || "").toLowerCase().trim();
-        const number = getLast6(row[2]);
-
-        sheetNameSet.add(name);
-        sheetNumberSet.add(number);
-
-        if (!nameToNumbers.has(name)) {
-          nameToNumbers.set(name, new Set());
-        }
-
-        nameToNumbers.get(name).add(number);
+      if (nameMatch && numberMatch) {
+        results.push(row);
       }
+    }
 
-      // 🔍 البحث الرئيسي
-      for (let i = 0; i < values.length; i++) {
+    const hasInput = nameSet.size > 0 || numberSet.size > 0;
 
-        const row = values[i];
+    if (!hasInput) {
+      setStatus("جاهز للبحث 🚀");
+      hideReportBtn();
+      renderResults(results);
+      return;
+    }
 
-        const name = (row[1] || "").toLowerCase().trim();
-        const number = getLast6(row[2]);
+    // ❌ NO RESULTS
+    if (results.length === 0) {
+      setStatus("غير موجود في الشيت ❌");
+      showReportBtn();
+      renderResults([]);
+      return;
+    }
 
-        let found = false;
+    // ✔ RESULTS
+    setStatus(`${results.length} نتيجة`);
+    hideReportBtn();
 
-        if (nameSet.size && numberSet.size) {
-          found = nameSet.has(name) && numberSet.has(number);
-        }
-        else if (nameSet.size) {
-          found = nameSet.has(name);
-        }
-        else if (numberSet.size) {
-          found = numberSet.has(number);
-        }
+    const allNamesMatched = [...nameSet].every(n =>
+      results.some(r => (r[1] || "").toLowerCase().trim() === n)
+    );
 
-        if (found) {
+    const allNumbersMatched = [...numberSet].every(n =>
+      results.some(r => getLast6(r[2]) === n)
+    );
 
-          showRows.push(i);
+    if (allNamesMatched && allNumbersMatched) {
+      setStatus(`${results.length} نتيجة - كل البيانات صحيحة ✅`);
+    }
 
-          if (nameSet.has(name)) {
-            foundNames.add(name);
-          }
+    renderResults(results);
+  };
 
-          if (numberSet.has(number)) {
-            foundNumbers.add(number);
-          }
-        }
-      }
+  // =========================
+  // TABLE
+  // =========================
+  function renderResults(data) {
 
-      // ❌ الاسم غير موجود
-      nameSet.forEach(name => {
+    const box = document.getElementById("resultsTable");
 
-        if (!sheetNameSet.has(name)) {
-          notFound.push(`الاسم غير موجود: ${name}`);
-        }
-      });
+    if (!data.length) {
+      box.innerHTML = `<div style="padding:10px;color:#b00020;">❌ لا توجد نتائج</div>`;
+      return;
+    }
 
-      // ❌ الرقم غير موجود
-      rawNumbers.forEach(fullNum => {
+    let html = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:#f3f6fb;">
+            <th>#</th>
+            <th>الاسم</th>
+            <th>الرقم</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
 
-        const last6 = getLast6(fullNum);
-
-        if (!sheetNumberSet.has(last6)) {
-          notFound.push(`الرقم غير موجود: ${fullNum}`);
-        }
-      });
-
-      // ⚠️ الرقم غير مطابق للاسم
-      const mismatchSet = new Set();
-
-      rawNumbers.forEach(fullNum => {
-
-        const last6 = getLast6(fullNum);
-
-        if (!sheetNumberSet.has(last6)) return;
-
-        let matched = false;
-
-        for (let inputName of nameSet) {
-
-          if (!nameToNumbers.has(inputName)) continue;
-
-          const numbers = nameToNumbers.get(inputName);
-
-          if (numbers.has(last6)) {
-            matched = true;
-            break;
-          }
-        }
-
-        if (!matched) {
-
-          mismatchSet.add(
-            `❌ الرقم غير مطابق للاسم\n` +
-            `🔢 الرقم: ${fullNum}`
-          );
-        }
-      });
-
-      mismatch = Array.from(mismatchSet);
-
-      const totalInputs = nameSet.size + numberSet.size;
-      const totalFound = foundNames.size + foundNumbers.size;
-
-      document.getElementById("liveStatus").innerText =
-        `${totalFound} من ${totalInputs} مطابق`;
-
-      // 🚀 إخفاء كل الصفوف
-      const used = sheet.getUsedRange();
-      used.load();
-      await context.sync();
-
-      used.rowHidden = true;
-
-      // 👁️ إظهار النتائج فقط
-      showRows.forEach(i => {
-
-        const r = sheet.getRangeByIndexes(
-          range.rowIndex + i,
-          0,
-          1,
-          range.columnCount
-        );
-
-        r.rowHidden = false;
-      });
-
-      // 📦 التقرير
-      const missingBox = document.getElementById("missingBox");
-      missingBox.style.display = "block";
-
-      missingBox.innerHTML = `
-
-        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:bold;margin-bottom:8px;">
-          <span>📌 تقرير التحقق</span>
-          <span id="copyAllBtn" style="cursor:pointer;font-size:18px;">📋</span>
-        </div>
-
-        ${
-          mismatch.length
-            ? `<div style="color:#b97700;font-weight:bold;">⚠️ غير مطابق:</div>
-               ${mismatch.map(v => `<div>• ${v}</div>`).join("")}`
-            : ""
-        }
-
-        ${
-          notFound.length
-            ? `<div style="color:#b00000;font-weight:bold;margin-top:10px;">❌ غير موجود:</div>
-               ${notFound.map(v => `<div>• ${v}</div>`).join("")}`
-            : ""
-        }
-
-        ${
-          !notFound.length && !mismatch.length
-            ? `<div style="color:#1a7f37;font-weight:bold;">✅ كل البيانات صحيحة</div>`
-            : ""
-        }
+    data.forEach((r, i) => {
+      html += `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${r[1] || ""}</td>
+          <td>${r[2] || ""}</td>
+        </tr>
       `;
-
-      document.getElementById("copyAllBtn").onclick = function () {
-
-        const text = [
-          ...mismatch.map(v => "⚠️ " + v),
-          ...notFound.map(v => "❌ " + v)
-        ].join("\n");
-
-        if (!text) return;
-
-        navigator.clipboard.writeText(text);
-
-        this.innerText = "✔️";
-
-        setTimeout(() => {
-          this.innerText = "📋";
-        }, 1200);
-      };
-
-      await context.sync();
     });
-  };
 
+    html += `</tbody></table>`;
+    box.innerHTML = html;
+  }
 
-  // 👁️ إظهار كل الصفوف
-  window.showAllRows = async function () {
-
-    await Excel.run(async (context) => {
-
-      const sheet = context.workbook.worksheets.getActiveWorksheet();
-
-      const used = sheet.getUsedRange();
-      used.load();
-
-      await context.sync();
-
-      used.rowHidden = false;
-
-      document.getElementById("liveStatus").innerText = "جاهز للبحث";
-    });
-  };
-
-
-  // 🧹 مسح البيانات
+  // =========================
+  // CLEAR
+  // =========================
   window.clearBox = function () {
 
     document.getElementById("nameBox").value = "";
     document.getElementById("numberBox").value = "";
-    document.getElementById("missingBox").style.display = "none";
-    document.getElementById("liveStatus").innerText = "جاهز للبحث";
 
-    updateCounter();
+    document.getElementById("inputCount").innerText = "0";
+
+    setStatus("جاهز للبحث 🚀");
+    hideReportBtn();
+
+    document.getElementById("resultsTable").innerHTML =
+      `<div style="padding:10px;color:#888;">لا توجد نتائج بعد</div>`;
+  };
+
+  // =========================
+  // SHOW ALL
+  // =========================
+  window.showAllRows = async function () {
+
+    await Excel.run(async (context) => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      const used = sheet.getUsedRange();
+
+      used.load();
+      await context.sync();
+
+      used.rowHidden = false;
+    });
+
+    setStatus("جاهز للبحث 🚀");
   };
 
 });

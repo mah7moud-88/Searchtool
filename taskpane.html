@@ -7,7 +7,6 @@
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-  <!-- ✅ مهم جدًا -->
   <script src="taskpane.js" defer></script>
 
   <style>
@@ -21,7 +20,6 @@
     }
 
     .card{
-      width:100%;
       background:white;
       border-radius:14px;
       padding:18px;
@@ -34,7 +32,6 @@
       display:grid;
       grid-template-columns:1fr 1fr;
       gap:10px;
-      margin-top:10px;
     }
 
     .box{ display:flex; flex-direction:column; }
@@ -74,7 +71,6 @@
     }
 
     .search-btn{ background:#4a90e2; color:white; }
-
     .show-btn{ background:#f1f1f1; color:#333; }
 
     .stats-box{
@@ -83,30 +79,54 @@
       border-radius:12px;
       padding:12px;
       border:1px solid #e5e7eb;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
     }
 
     .stat-item{
       display:flex;
       justify-content:space-between;
       font-size:12px;
-      margin-bottom:8px;
     }
 
-    .stat-item span{
-      font-weight:bold;
-      color:#4a90e2;
-    }
-
-    #missingBox{
-      margin-top:12px;
-      padding:10px;
-      border-radius:10px;
-      background:#fff3f3;
-      border:1px solid #ffd0d0;
-      font-size:11px;
-      max-height:120px;
-      overflow:auto;
+    .report-btn{
+      font-size:10px;
+      padding:2px 6px;
+      border:none;
+      border-radius:5px;
+      background:#4a90e2;
+      color:white;
+      cursor:pointer;
+      margin-left:auto;
       display:none;
+    }
+
+    /* =========================
+       🔥 SUCCESS MESSAGE (RIGHT)
+    ========================= */
+    #successMsg{
+      font-size:11px;
+      color:#1a7f37;
+      text-align:right;   /* 👈 هنا التعديل */
+      display:none;
+      margin-top:2px;
+    }
+
+    .results-card{
+      margin-top:12px;
+      background:white;
+      border-radius:14px;
+      padding:18px;
+      box-shadow:0 8px 20px rgba(0,0,0,0.08);
+    }
+
+    #resultsTable{
+      max-height:400px;
+      overflow:auto;
+      border:1px solid #eee;
+      border-radius:10px;
+      background:white;
     }
   </style>
 </head>
@@ -121,12 +141,12 @@
 
       <div class="box">
         <label>🔢 الرقم</label>
-        <textarea id="numberBox" placeholder="اكتب الارقام هنا"></textarea>
+        <textarea id="numberBox"></textarea>
       </div>
 
       <div class="box">
         <label>👤 الاسم</label>
-        <textarea id="nameBox" placeholder="اكتب الاسماء هنا"></textarea>
+        <textarea id="nameBox"></textarea>
       </div>
 
     </div>
@@ -157,12 +177,26 @@
       <div class="stat-item">
         📊 الحالة:
         <span id="liveStatus">جاهز للبحث</span>
+
+        <button id="reportBtn" class="report-btn">
+          📄 تقرير
+        </button>
+      </div>
+
+      <!-- 🔥 الرسالة تحت الحالة -->
+      <div id="successMsg">
+        كل البيانات صحيحة ✅
       </div>
 
     </div>
 
-    <div id="missingBox"></div>
+  </div>
 
+  <div class="results-card">
+    <h2>📊 نتائج البحث</h2>
+    <div id="resultsTable">
+      <div style="padding:10px;color:#888;">لا توجد نتائج بعد</div>
+    </div>
   </div>
 
 </body>
