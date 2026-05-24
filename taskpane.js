@@ -4,7 +4,6 @@ Office.onReady(async () => {
   // 🔢 GET LAST 6 DIGITS
   // =========================
   function getLast6(value) {
-
     return String(value || "")
       .replace(/\D/g, "")
       .slice(-6);
@@ -100,22 +99,19 @@ Office.onReady(async () => {
               workbook.SheetNames[0]
             ];
 
-          // 🔥 STORE FILE DATA
           DATA =
             XLSX.utils.sheet_to_json(sheet, {
               header: 1
             });
 
-          // 🔥 FILL NAMES FROM COLUMN B
           document.getElementById("nameBox").value =
             DATA.slice(1)
-              .map(r => String(r[1] || ""))
+              .map(r => String(r[1] || "")) // B
               .join("\n");
 
-          // 🔥 FILL NUMBERS FROM COLUMN C
           document.getElementById("numberBox").value =
             DATA.slice(1)
-              .map(r => String(r[2] || ""))
+              .map(r => String(r[2] || "")) // C
               .join("\n");
 
           updateCounter();
@@ -163,32 +159,29 @@ Office.onReady(async () => {
 
     let results = [];
 
-    // 🔥 LOOP DATA
-    for (let i = 1; i < DATA.length; i++) {
+    // =========================
+    // ✅ FIX: B = index 1, C = index 2
+    // =========================
+    for (let i = 0; i < DATA.length; i++) {
 
       const row = DATA[i];
 
-      // 🔥 COLUMN B = NAME
       const excelName =
-        String(row[1] || "")
+        String(row[1] || "")   // 🔥 COLUMN B
           .toLowerCase()
           .trim();
 
-      // 🔥 COLUMN C = ACCOUNT NUMBER
       const excelNumber =
-        getLast6(row[2]);
+        getLast6(row[2]);      // 🔥 COLUMN C
 
-      // 🔥 PARTIAL NAME SEARCH
       const nameMatch =
         names.length === 0 ||
         names.some(n => excelName.includes(n));
 
-      // 🔥 NUMBER MATCH
       const numberMatch =
         numbers.length === 0 ||
         numbers.includes(excelNumber);
 
-      // 🔥 PUSH RESULT
       if (nameMatch && numberMatch) {
         results.push(row);
       }
@@ -208,15 +201,10 @@ Office.onReady(async () => {
     const box =
       document.getElementById("resultsTable");
 
-    // 🔥 NO RESULTS
     if (!data.length) {
 
       box.innerHTML = `
-        <div style="
-          padding:12px;
-          color:#b00020;
-          font-weight:bold;
-        ">
+        <div style="padding:12px;color:#b00020;font-weight:bold;">
           ❌ لا توجد نتائج
         </div>
       `;
@@ -225,15 +213,9 @@ Office.onReady(async () => {
     }
 
     let html = `
-      <table style="
-        width:100%;
-        border-collapse:collapse;
-        font-size:12px;
-      ">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead>
-          <tr style="
-            background:#f3f6fb;
-          ">
+          <tr style="background:#f3f6fb;">
             <th>#</th>
             <th>الاسم</th>
             <th>رقم الحساب الكامل</th>
@@ -242,7 +224,6 @@ Office.onReady(async () => {
         <tbody>
     `;
 
-    // 🔥 TABLE ROWS
     for (let i = 0; i < data.length; i++) {
 
       html += `
@@ -268,21 +249,15 @@ Office.onReady(async () => {
   window.clearBox = function () {
 
     document.getElementById("nameBox").value = "";
-
     document.getElementById("numberBox").value = "";
 
-    document.getElementById("resultsTable").innerHTML =
-      `
-      <div style="
-        padding:10px;
-        color:#888;
-      ">
+    document.getElementById("resultsTable").innerHTML = `
+      <div style="padding:10px;color:#888;">
         لا توجد نتائج بعد
       </div>
-      `;
+    `;
 
-    document.getElementById("inputCount").innerText =
-      "0";
+    document.getElementById("inputCount").innerText = "0";
 
     document.getElementById("liveStatus").innerText =
       "جاهز للبحث 🚀";
