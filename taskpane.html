@@ -86,9 +86,9 @@
       border:none;
       cursor:pointer;
 
-      padding:14px;
+      padding:12px;
 
-      font-size:14px;
+      font-size:13px;
       font-weight:700;
 
       border-radius:14px;
@@ -99,7 +99,7 @@
       align-items:center;
       justify-content:center;
 
-      gap:8px;
+      gap:6px;
 
     }
 
@@ -112,14 +112,14 @@
 
     button:hover {
 
-      transform:translateY(-2px);
-      box-shadow:0 10px 20px rgba(0,120,212,0.25);
+      transform:translateY(-1px);
+      box-shadow:0 8px 18px rgba(0,120,212,0.25);
 
     }
 
     .uploadBtn {
 
-      background:linear-gradient(135deg,#f3f6fb,#e9eef7);
+      background:#f3f6fb;
       color:#333;
 
       box-shadow:inset 0 0 0 1px #dbe2ee;
@@ -143,9 +143,43 @@
 
     }
 
+    .resultHeader{
+
+      display:flex;
+      justify-content:flex-end;
+      margin-top:12px;
+
+    }
+
+    #exportBtn{
+
+      padding:8px 12px;
+
+      font-size:12px;
+      font-weight:700;
+
+      border:none;
+      cursor:pointer;
+
+      border-radius:10px;
+
+      background:linear-gradient(135deg,#28a745,#1f7a33);
+      color:white;
+
+      transition:0.2s;
+
+    }
+
+    #exportBtn:hover{
+
+      transform:translateY(-1px);
+      box-shadow:0 6px 15px rgba(40,167,69,0.25);
+
+    }
+
     #result {
 
-      margin-top:12px;
+      margin-top:10px;
 
       background:#f7f9fc;
 
@@ -161,8 +195,6 @@
 
       white-space:pre-line;
 
-      box-shadow:inset 0 0 0 1px #e3e8f2;
-
     }
 
   </style>
@@ -174,7 +206,9 @@
 
     <h2 class="title">🔍 Search</h2>
 
-    <textarea id="accountNumber" placeholder="اكتب أرقام الحسابات كل رقم في سطر"></textarea>
+    <textarea
+      id="accountNumber"
+      placeholder="اكتب أرقام الحسابات كل رقم في سطر"></textarea>
 
     <div class="btnGroup">
 
@@ -185,6 +219,10 @@
         <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
       </label>
 
+    </div>
+
+    <div class="resultHeader">
+      <button id="exportBtn">📤 Export</button>
     </div>
 
     <div id="result">النتائج تظهر هنا</div>

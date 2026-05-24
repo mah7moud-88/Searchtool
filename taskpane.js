@@ -1,7 +1,10 @@
 Office.onReady(() => {
 
-  document.getElementById("searchBtn").onclick =
-    searchByLast6;
+  const searchBtn = document.getElementById("searchBtn");
+  const exportBtn = document.getElementById("exportBtn");
+
+  if (searchBtn) searchBtn.onclick = searchAccount;
+  if (exportBtn) exportBtn.onclick = exportExcel;
 
 });
 
@@ -13,7 +16,9 @@ function cleanValue(value) {
 
 }
 
-async function searchByLast6() {
+let resultsData = [];
+
+async function searchAccount() {
 
   const resultDiv =
     document.getElementById("result");
@@ -21,25 +26,22 @@ async function searchByLast6() {
   let input =
     document.getElementById("accountNumber").value;
 
-  input = cleanValue(input);
-
-  if (!input) {
+  if (!input.trim()) {
 
     resultDiv.innerText =
-      "اكتب آخر 6 أرقام";
+      "اكتب أرقام الحسابات";
 
     return;
   }
 
-  if (input.length > 6) {
-
-    resultDiv.innerText =
-      "اكتب آخر 6 أرقام فقط";
-
-    return;
-  }
+  const accounts = input
+    .split("\n")
+    .map(x => cleanValue(x))
+    .filter(x => x);
 
   resultDiv.innerText = "جاري البحث...";
+
+  resultsData = [];
 
   await Excel.run(async (context) => {
 
@@ -56,44 +58,122 @@ async function searchByLast6() {
     const values = range.text;
 
     let output = "";
-    let found = false;
 
-    for (let r = 0; r < values.length; r++) {
+    for (let acc of accounts) {
 
-      let acc = cleanValue(values[r][0]);
+      let found = false;
 
-      // نقارن آخر 6 أرقام
-      let last6 = acc.slice(-6);
+      const isLast6 = acc.length <= 6;
 
-      if (last6 === input) {
+      for (let r = 0; r < values.length; r++) {
 
-        const realRow = r + 1;
+        let cellValue =
+          cleanValue(values[r][0]);
 
-        const nameCell =
-          sheet.getRange("B" + realRow);
+        let match = false;
 
-        const fullAccCell =
-          sheet.getRange("C" + realRow);
+        if (isLast6) {
 
-        nameCell.load("text");
-        fullAccCell.load("text");
+          if (cellValue.slice(-acc.length) === acc) {
+            match = true;
+          }
 
-        await context.sync();
+        } else {
+
+          if (cellValue === acc) {
+            match = true;
+          }
+
+        }
+
+        if (match) {
+
+          const realRow = r + 1;
+
+          const nameCell =
+            sheet.getRange("B" + realRow);
+
+          const accCell =
+            sheet.getRange("C" + realRow);
+
+          nameCell.load("text");
+          accCell.load("text");
+
+          await context.sync();
+
+          const name =
+            nameCell.text[0][0];
+
+          const account =
+            accCell.text[0][0];
+
+          output +=
+            `👤 ${name}\n📌 ${account}\n\n`;
+
+          resultsData.push({
+            name: name,
+            account: account
+          });
+
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
 
         output +=
-          `✔ ${fullAccCell.text[0][0]} → ${nameCell.text[0][0]}\n`;
+          `❌ ${acc} → غير موجود\n\n`;
 
-        found = true;
       }
     }
 
-    if (!found) {
-
-      output = "لا توجد نتائج";
-
-    }
-
     resultDiv.innerText = output;
+
+  });
+
+}
+
+async function exportExcel() {
+
+  const resultDiv =
+    document.getElementById("result");
+
+  if (!resultsData || resultsData.length === 0) {
+
+    resultDiv.innerText =
+      "لا يوجد بيانات للتصدير";
+
+    return;
+  }
+
+  await Excel.run(async (context) => {
+
+    const sheet =
+      context.workbook.worksheets.add("Export");
+
+    const data = [];
+
+    data.push(["رقم الحساب", "الاسم"]);
+
+    resultsData.forEach(item => {
+
+      data.push([item.account, item.name]);
+
+    });
+
+    const range =
+      sheet.getRange(
+        `A1:B${data.length}`
+      );
+
+    range.values = data;
+
+    range.format.autofitColumns();
+
+    sheet.activate();
+
+    await context.sync();
 
   });
 
