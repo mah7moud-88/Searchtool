@@ -10,7 +10,9 @@
   <script src="taskpane.js" defer></script>
 
   <style>
-    * { box-sizing:border-box; }
+    *{
+      box-sizing:border-box;
+    }
 
     body{
       font-family:"Segoe UI",sans-serif;
@@ -26,7 +28,10 @@
       box-shadow:0 8px 20px rgba(0,0,0,0.08);
     }
 
-    h2{ margin:0 0 12px 0; font-size:16px; }
+    h2{
+      margin:0 0 12px 0;
+      font-size:16px;
+    }
 
     .split-box{
       display:grid;
@@ -34,7 +39,10 @@
       gap:10px;
     }
 
-    .box{ display:flex; flex-direction:column; }
+    .box{
+      display:flex;
+      flex-direction:column;
+    }
 
     label{
       margin-bottom:6px;
@@ -68,10 +76,22 @@
       border-radius:8px;
       cursor:pointer;
       font-size:12px;
+      transition:0.2s;
     }
 
-    .search-btn{ background:#4a90e2; color:white; }
-    .show-btn{ background:#f1f1f1; color:#333; }
+    button:hover{
+      opacity:0.9;
+    }
+
+    .search-btn{
+      background:#4a90e2;
+      color:white;
+    }
+
+    .show-btn{
+      background:#f1f1f1;
+      color:#333;
+    }
 
     .stats-box{
       margin-top:15px;
@@ -81,36 +101,28 @@
       border:1px solid #e5e7eb;
       display:flex;
       flex-direction:column;
-      gap:6px;
+      gap:8px;
     }
 
     .stat-item{
       display:flex;
       justify-content:space-between;
+      align-items:center;
       font-size:12px;
     }
 
-    .report-btn{
-      font-size:10px;
-      padding:2px 6px;
-      border:none;
-      border-radius:5px;
-      background:#4a90e2;
-      color:white;
-      cursor:pointer;
-      margin-left:auto;
-      display:none;
-    }
-
-    /* =========================
-       🔥 SUCCESS MESSAGE (RIGHT)
-    ========================= */
+    /* ✅ رسالة النجاح */
     #successMsg{
-      font-size:11px;
-      color:#1a7f37;
-      text-align:right;   /* 👈 هنا التعديل */
       display:none;
-      margin-top:2px;
+      text-align:center;
+      color:#1a7f37;
+      font-size:12px;
+      font-weight:bold;
+      padding:8px;
+      border-radius:8px;
+      background:#eefbf1;
+      border:1px solid #c9ebd1;
+      margin-top:4px;
     }
 
     .results-card{
@@ -128,6 +140,53 @@
       border-radius:10px;
       background:white;
     }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      direction:rtl;
+      font-size:12px;
+    }
+
+    thead{
+      background:#f3f6fb;
+      position:sticky;
+      top:0;
+      z-index:2;
+    }
+
+    th,td{
+      padding:10px;
+      border-bottom:1px solid #eee;
+    }
+
+    th{
+      font-weight:bold;
+    }
+
+    td.name{
+      text-align:right;
+      direction:rtl;
+      font-weight:600;
+    }
+
+    td.number{
+      text-align:left;
+      direction:ltr;
+      font-family:monospace;
+    }
+
+    .empty{
+      padding:14px;
+      text-align:center;
+      color:#888;
+    }
+
+    .error{
+      color:#b00020;
+      font-weight:bold;
+    }
+
   </style>
 </head>
 
@@ -153,50 +212,84 @@
 
     <div class="btns">
 
-      <button class="show-btn" onclick="document.getElementById('fileInput').click()">
+      <button
+        class="show-btn"
+        onclick="document.getElementById('fileInput').click()"
+      >
         📁 رفع ملف
       </button>
 
-      <input type="file" id="fileInput" accept=".xlsx,.xls" hidden />
+      <input
+        type="file"
+        id="fileInput"
+        accept=".xlsx,.xls"
+        hidden
+      />
 
-      <button class="show-btn" onclick="showAllRows()">👁️ إظهار</button>
+      <button
+        class="show-btn"
+        onclick="showAllRows()"
+      >
+        👁️ إظهار
+      </button>
 
-      <button class="search-btn" onclick="searchNumber()">🔍 بحث</button>
+      <button
+        class="search-btn"
+        onclick="searchNumber()"
+      >
+        🔍 بحث
+      </button>
 
-      <button class="show-btn" onclick="clearBox()">🧹 مسح</button>
+      <button
+        class="show-btn"
+        onclick="clearBox()"
+      >
+        🧹 مسح
+      </button>
 
     </div>
+
+    <!-- =========================
+         📊 STATUS
+    ========================= -->
 
     <div class="stats-box">
 
       <div class="stat-item">
-        📋 القيم المدخلة:
+        <span>📋 القيم المدخلة:</span>
         <span id="inputCount">0</span>
       </div>
 
       <div class="stat-item">
-        📊 الحالة:
-        <span id="liveStatus">جاهز للبحث</span>
-
-        <button id="reportBtn" class="report-btn">
-          📄 تقرير
-        </button>
+        <span>📊 الحالة:</span>
+        <span id="liveStatus">جاهز للبحث 🚀</span>
       </div>
 
-      <!-- 🔥 الرسالة تحت الحالة -->
+      <!-- ✅ الرسالة -->
       <div id="successMsg">
-        كل البيانات صحيحة ✅
+        كل القيم صحيحة ✅
       </div>
 
     </div>
 
   </div>
 
+  <!-- =========================
+       📊 RESULTS
+  ========================= -->
+
   <div class="results-card">
+
     <h2>📊 نتائج البحث</h2>
+
     <div id="resultsTable">
-      <div style="padding:10px;color:#888;">لا توجد نتائج بعد</div>
+
+      <div class="empty">
+        لا توجد نتائج بعد
+      </div>
+
     </div>
+
   </div>
 
 </body>

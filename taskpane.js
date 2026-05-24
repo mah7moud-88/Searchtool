@@ -1,23 +1,56 @@
 Office.onReady(async () => {
 
   // =========================
-  // 🔢 GET LAST 6 DIGITS
+  // 👤 CLEAN TEXT
   // =========================
-  function getLast6(value) {
+  function normalizeText(value) {
+
     return String(value || "")
-      .replace(/\D/g, "")
-      .slice(-6);
+      .toLowerCase()
+
+      // حذف المسافات
+      .replace(/\s+/g, "")
+
+      // حذف التشكيل
+      .replace(/[\u064B-\u065F]/g, "")
+
+      // توحيد الحروف
+      .replace(/[أإآ]/g, "ا")
+      .replace(/ة/g, "ه")
+      .replace(/ى/g, "ي")
+
+      // حذف الرموز
+      .replace(/[^\w\u0600-\u06FF]/g, "");
   }
 
   // =========================
-  // ⚡ DATA STORAGE
+  // 🔢 CLEAN NUMBER
+  // =========================
+  function normalizeNumber(value) {
+
+    return String(value || "")
+
+      // عربي → إنجليزي
+      .replace(/[٠-٩]/g, d =>
+        "٠١٢٣٤٥٦٧٨٩".indexOf(d)
+      )
+
+      // حذف أي شيء غير رقم
+      .replace(/[^\d]/g, "");
+  }
+
+  // =========================
+  // 📦 DATA STORAGE
   // =========================
   let DATA = [];
 
   // =========================
-  // 📥 LOAD DATA FROM EXCEL
+  // 📥 LOAD DATA
   // =========================
   async function loadData() {
+
+    document.getElementById("liveStatus").innerText =
+      "جاري تحميل البيانات...";
 
     await Excel.run(async (context) => {
 
@@ -29,11 +62,11 @@ Office.onReady(async () => {
       const range =
         sheet.getUsedRange();
 
-      range.load("values");
+      range.load("text");
 
       await context.sync();
 
-      DATA = range.values || [];
+      DATA = range.text || [];
     });
 
     document.getElementById("liveStatus").innerText =
@@ -43,7 +76,7 @@ Office.onReady(async () => {
   await loadData();
 
   // =========================
-  // 📊 COUNTER
+  // 📊 UPDATE COUNTER
   // =========================
   function updateCounter() {
 
@@ -51,15 +84,13 @@ Office.onReady(async () => {
       document.getElementById("nameBox")
         .value
         .split("\n")
-        .map(v => v.trim())
-        .filter(Boolean);
+        .filter(v => v.trim());
 
     const numbers =
       document.getElementById("numberBox")
         .value
         .split("\n")
-        .map(v => v.trim())
-        .filter(Boolean);
+        .filter(v => v.trim());
 
     document.getElementById("inputCount").innerText =
       names.length + numbers.length;
@@ -101,17 +132,21 @@ Office.onReady(async () => {
 
           DATA =
             XLSX.utils.sheet_to_json(sheet, {
-              header: 1
+              header: 1,
+              raw: false,
+              defval: ""
             });
 
+          // 👤 الاسم = العمود A
           document.getElementById("nameBox").value =
             DATA.slice(1)
-              .map(r => String(r[1] || "")) // B
+              .map(r => String(r[0] || ""))
               .join("\n");
 
+          // 🔢 الرقم = العمود B
           document.getElementById("numberBox").value =
             DATA.slice(1)
-              .map(r => String(r[2] || "")) // C
+              .map(r => String(r[1] || ""))
               .join("\n");
 
           updateCounter();
@@ -140,105 +175,400 @@ Office.onReady(async () => {
   // =========================
   window.searchNumber = function () {
 
-    // 🔥 INPUT NAMES
+    // 👤 INPUT NAMES
     const names =
       document.getElementById("nameBox")
         .value
-        .toLowerCase()
         .split("\n")
-        .map(v => v.trim())
+        .map(v => normalizeText(v))
         .filter(Boolean);
 
-    // 🔥 INPUT NUMBERS
+    // 🔢 INPUT NUMBERS
     const numbers =
       document.getElementById("numberBox")
         .value
         .split("\n")
-        .map(v => getLast6(v))
+        .map(v => normalizeNumber(v))
         .filter(Boolean);
 
-    let results = [];
+    let matchedResults = [];
+    let unmatchedResults = [];
 
     // =========================
-    // ✅ FIX: B = index 1, C = index 2
+    // 🔍 LOOP INPUTS
     // =========================
-    for (let i = 0; i < DATA.length; i++) {
+    const maxLength =
+      Math.max(names.length, numbers.length);
 
-      const row = DATA[i];
+    for (let x = 0; x < maxLength; x++) {
 
-      const excelName =
-        String(row[1] || "")   // 🔥 COLUMN B
-          .toLowerCase()
-          .trim();
+      const inputName =
+        names[x] || "";
 
-      const excelNumber =
-        getLast6(row[2]);      // 🔥 COLUMN C
+      const inputNumber =
+        numbers[x] || "";
 
-      const nameMatch =
-        names.length === 0 ||
-        names.some(n => excelName.includes(n));
+      let found = false;
 
-      const numberMatch =
-        numbers.length === 0 ||
-        numbers.includes(excelNumber);
+      // =========================
+      // 🔍 SEARCH IN DATA
+      // =========================
+      for (let i = 1; i < DATA.length; i++) {
 
-      if (nameMatch && numberMatch) {
-        results.push(row);
+        const row = DATA[i];
+
+        // 👤 العمود A
+        const excelName =
+          normalizeText(row[0]);
+
+        // 🔢 العمود B
+        const excelNumber =
+          normalizeNumber(row[1]);
+
+        const nameMatch =
+          !inputName ||
+          excelName.includes(inputName);
+
+        const numberMatch =
+          !inputNumber ||
+          excelNumber.includes(inputNumber);
+
+        // ✅ MATCHED
+        if (nameMatch && numberMatch) {
+
+          matchedResults.push(row);
+
+          found = true;
+
+          break;
+        }
+      }
+
+      // ❌ NOT MATCHED OR NOT FOUND
+      if (!found) {
+
+        let reason = "";
+
+        // 🔍 فحص الاسم
+        const nameExists = DATA.some(r => {
+
+          const excelName =
+            normalizeText(r[0]);
+
+          return excelName.includes(inputName);
+        });
+
+        // 🔍 فحص الرقم
+        const numberExists = DATA.some(r => {
+
+          const excelNumber =
+            normalizeNumber(r[1]);
+
+          return excelNumber.includes(inputNumber);
+        });
+
+        // 🚫 غير موجود
+        if (
+          (inputName && !nameExists) ||
+          (inputNumber && !numberExists)
+        ) {
+
+          reason = "غير موجود";
+        }
+
+        // ❌ غير مطابق
+        else {
+
+          reason = "غير مطابق";
+        }
+
+        unmatchedResults.push({
+
+          name:
+            inputName || "-",
+
+          number:
+            inputNumber || "-",
+
+          reason
+        });
       }
     }
 
-    document.getElementById("liveStatus").innerText =
-      `${results.length} نتيجة`;
+    // =========================
+    // 📊 STATUS
+    // =========================
+    const notFoundCount =
+      unmatchedResults.filter(
+        x => x.reason === "غير موجود"
+      ).length;
 
-    renderResults(results);
+    const mismatchCount =
+      unmatchedResults.filter(
+        x => x.reason === "غير مطابق"
+      ).length;
+
+    document.getElementById("liveStatus").innerHTML = `
+      ✅ صحيح: ${matchedResults.length}
+      &nbsp;&nbsp; | &nbsp;&nbsp;
+      ❌ غير مطابق: ${mismatchCount}
+      &nbsp;&nbsp; | &nbsp;&nbsp;
+      🚫 غير موجود: ${notFoundCount}
+    `;
+
+    // =========================
+    // ✅ SUCCESS MESSAGE
+    // =========================
+    const successMsg =
+      document.getElementById("successMsg");
+
+    successMsg.style.display = "block";
+
+    successMsg.style.padding = "8px";
+    successMsg.style.borderRadius = "8px";
+
+    if (
+      mismatchCount === 0 &&
+      notFoundCount === 0
+    ) {
+
+      successMsg.style.color =
+        "#1a7f37";
+
+      successMsg.style.background =
+        "#eefbf1";
+
+      successMsg.style.border =
+        "1px solid #c9ebd1";
+
+      successMsg.innerText =
+        "كل القيم صحيحة ✅";
+    }
+
+    else {
+
+      successMsg.style.color =
+        "#b00020";
+
+      successMsg.style.background =
+        "#fff1f1";
+
+      successMsg.style.border =
+        "1px solid #ffd0d0";
+
+      successMsg.innerText =
+        `يوجد ${unmatchedResults.length} قيم غير صحيحة`;
+    }
+
+    // =========================
+    // 📊 RENDER RESULTS
+    // =========================
+    renderAllResults(
+      matchedResults,
+      unmatchedResults
+    );
   };
 
   // =========================
   // 📊 RENDER RESULTS
   // =========================
-  function renderResults(data) {
+  function renderAllResults(
+    matchedData,
+    unmatchedData
+  ) {
 
     const box =
       document.getElementById("resultsTable");
 
-    if (!data.length) {
+    let html = "";
 
-      box.innerHTML = `
-        <div style="padding:12px;color:#b00020;font-weight:bold;">
-          ❌ لا توجد نتائج
-        </div>
-      `;
-
-      return;
-    }
-
-    let html = `
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead>
-          <tr style="background:#f3f6fb;">
-            <th>#</th>
-            <th>الاسم</th>
-            <th>رقم الحساب الكامل</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    for (let i = 0; i < data.length; i++) {
+    // =========================
+    // ✅ MATCHED TABLE
+    // =========================
+    if (matchedData.length) {
 
       html += `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${String(data[i][1] || "")}</td>
-          <td>${String(data[i][2] || "")}</td>
-        </tr>
+
+        <div style="
+          margin-bottom:20px;
+          border:1px solid #d6f0dc;
+          border-radius:12px;
+          overflow:hidden;
+        ">
+
+          <div style="
+            background:#1a7f37;
+            color:white;
+            padding:10px;
+            font-weight:bold;
+            text-align:center;
+          ">
+            ✅ القيم الصحيحة
+          </div>
+
+          <table style="
+            width:100%;
+            border-collapse:collapse;
+            font-size:12px;
+          ">
+
+            <thead>
+              <tr style="background:#f4fff6;">
+                <th style="padding:10px;">#</th>
+                <th style="padding:10px;">الاسم</th>
+                <th style="padding:10px;">الرقم</th>
+              </tr>
+            </thead>
+
+            <tbody>
+      `;
+
+      for (let i = 0; i < matchedData.length; i++) {
+
+        html += `
+          <tr style="border-top:1px solid #eee;">
+
+            <td style="padding:10px;">
+              ${i + 1}
+            </td>
+
+            <td style="
+              padding:10px;
+              text-align:right;
+              direction:rtl;
+              unicode-bidi:plaintext;
+              font-family:'Segoe UI',sans-serif;
+            ">
+              ${matchedData[i][0]}
+            </td>
+
+            <td style="
+              padding:10px;
+              direction:ltr;
+            ">
+              ${matchedData[i][1]}
+            </td>
+
+          </tr>
+        `;
+      }
+
+      html += `
+            </tbody>
+          </table>
+        </div>
       `;
     }
 
-    html += `
-        </tbody>
-      </table>
-    `;
+    // =========================
+    // ❌ UNMATCHED TABLE
+    // =========================
+    if (unmatchedData.length) {
+
+      html += `
+
+        <div style="
+          border:1px solid #ffd0d0;
+          border-radius:12px;
+          overflow:hidden;
+        ">
+
+          <div style="
+            background:#b00020;
+            color:white;
+            padding:10px;
+            font-weight:bold;
+            text-align:center;
+          ">
+            ❌ القيم غير المطابقة / غير الموجودة
+          </div>
+
+          <table style="
+            width:100%;
+            border-collapse:collapse;
+            font-size:12px;
+          ">
+
+            <thead>
+              <tr style="background:#fff5f5;">
+                <th style="padding:10px;">#</th>
+                <th style="padding:10px;">الاسم</th>
+                <th style="padding:10px;">الرقم</th>
+                <th style="padding:10px;">الحالة</th>
+              </tr>
+            </thead>
+
+            <tbody>
+      `;
+
+      for (let i = 0; i < unmatchedData.length; i++) {
+
+        html += `
+          <tr style="border-top:1px solid #eee;">
+
+            <td style="padding:10px;">
+              ${i + 1}
+            </td>
+
+            <td style="
+              padding:10px;
+              text-align:right;
+              direction:rtl;
+              unicode-bidi:plaintext;
+              white-space:normal;
+              word-break:break-word;
+              font-family:'Segoe UI',sans-serif;
+            ">
+              ${unmatchedData[i].name || "-"}
+            </td>
+
+            <td style="
+              padding:10px;
+              direction:ltr;
+            ">
+              ${unmatchedData[i].number || "-"}
+            </td>
+
+            <td style="
+              padding:10px;
+              font-weight:bold;
+              color:
+                ${unmatchedData[i].reason === "غير موجود"
+                  ? "#d97706"
+                  : "#b00020"};
+            ">
+              ${unmatchedData[i].reason}
+            </td>
+
+          </tr>
+        `;
+      }
+
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // =========================
+    // 🚫 NOTHING
+    // =========================
+    if (
+      !matchedData.length &&
+      !unmatchedData.length
+    ) {
+
+      html = `
+        <div style="
+          padding:20px;
+          text-align:center;
+          color:#888;
+        ">
+          لا توجد نتائج
+        </div>
+      `;
+    }
 
     box.innerHTML = html;
   }
@@ -252,41 +582,32 @@ Office.onReady(async () => {
     document.getElementById("numberBox").value = "";
 
     document.getElementById("resultsTable").innerHTML = `
-      <div style="padding:10px;color:#888;">
+      <div style="
+        padding:20px;
+        text-align:center;
+        color:#888;
+      ">
         لا توجد نتائج بعد
       </div>
     `;
 
-    document.getElementById("inputCount").innerText = "0";
+    document.getElementById("inputCount").innerText =
+      "0";
 
     document.getElementById("liveStatus").innerText =
       "جاهز للبحث 🚀";
+
+    document.getElementById("successMsg")
+      .style.display = "none";
   };
 
   // =========================
   // 👁️ SHOW ALL
   // =========================
-  window.showAllRows = async function () {
+  window.showAllRows = function () {
 
-    await Excel.run(async (context) => {
-
-      const sheet =
-        context.workbook
-          .worksheets
-          .getActiveWorksheet();
-
-      const used =
-        sheet.getUsedRange();
-
-      used.load();
-
-      await context.sync();
-
-      used.rowHidden = false;
-
-      document.getElementById("liveStatus").innerText =
-        "تم إظهار كل الصفوف 👁️";
-    });
+    document.getElementById("liveStatus").innerText =
+      "تم إظهار البيانات 👁️";
   };
 
 });
