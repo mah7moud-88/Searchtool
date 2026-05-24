@@ -13,10 +13,10 @@ function cleanValue(value) {
 
 }
 
-// حذف الأصفار من بداية الرقم
 function removeLeadingZeros(value) {
 
-  return cleanValue(value).replace(/^0+/, "");
+  return cleanValue(value)
+    .replace(/^0+/, "");
 
 }
 
@@ -43,66 +43,57 @@ async function searchAccount() {
     const sheet =
       context.workbook.worksheets.getActiveWorksheet();
 
-    const usedRange = sheet.getUsedRange();
+    // عمود رقم الحساب = C
+    const accountRange =
+      sheet.getRange("C1:C50000");
 
-    usedRange.load([
-      "values",
-      "rowIndex"
-    ]);
+    accountRange.load("text");
 
     await context.sync();
 
-    const values = usedRange.values;
+    const values = accountRange.text;
 
     let found = false;
 
     for (let r = 0; r < values.length; r++) {
 
-      for (let c = 0; c < values[r].length; c++) {
+      const cellValue =
+        cleanValue(values[r][0]);
 
-        const cellValue =
-          cleanValue(values[r][c]);
+      const normalizedCell =
+        removeLeadingZeros(cellValue);
 
-        const normalizedCell =
-          removeLeadingZeros(cellValue);
+      if (
+        cellValue === accountNumber ||
+        normalizedCell === normalizedInput
+      ) {
 
-        // مقارنة بالقيمتين
-        if (
-          cellValue === accountNumber ||
-          normalizedCell === normalizedInput
-        ) {
+        found = true;
 
-          found = true;
+        const realRow = r + 1;
 
-          // الصف الحقيقي
-          const realRow =
-            usedRange.rowIndex + r + 1;
+        // الاسم من العمود B
+        const nameCell =
+          sheet.getRange("B" + realRow);
 
-          // الاسم من العمود B
-          const nameCell =
-            sheet.getRange("B" + realRow);
+        nameCell.load("text");
 
-          nameCell.load("text");
+        // تحديد خلية رقم الحساب
+        const foundCell =
+          sheet.getRange("C" + realRow);
 
-          // تحديد الخلية
-          const foundCell =
-            usedRange.getCell(r, c);
+        foundCell.select();
 
-          foundCell.select();
+        await context.sync();
 
-          await context.sync();
+        const finalName =
+          nameCell.text[0][0];
 
-          const finalName =
-            nameCell.text[0][0];
+        document.getElementById("result").innerText =
+          "الاسم: " + finalName;
 
-          document.getElementById("result").innerText =
-            "الاسم: " + finalName;
-
-          break;
-        }
+        break;
       }
-
-      if (found) break;
     }
 
     if (!found) {
