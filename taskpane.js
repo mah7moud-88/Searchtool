@@ -1,42 +1,40 @@
 Office.onReady(() => {
 
   document.getElementById("searchBtn").onclick =
-    searchAccount;
+    searchByLast6;
 
 });
 
 function cleanValue(value) {
 
   return String(value || "")
-    .replace(/\s+/g, "")
-    .trim();
+    .trim()
+    .replace(/\s+/g, "");
 
 }
 
-function removeLeadingZeros(value) {
-
-  return cleanValue(value)
-    .replace(/^0+/, "");
-
-}
-
-async function searchAccount() {
+async function searchByLast6() {
 
   const resultDiv =
     document.getElementById("result");
 
-  const accountNumber =
-    cleanValue(
-      document.getElementById("accountNumber").value
-    );
+  let input =
+    document.getElementById("accountNumber").value;
 
-  const normalizedInput =
-    removeLeadingZeros(accountNumber);
+  input = cleanValue(input);
 
-  if (!accountNumber) {
+  if (!input) {
 
     resultDiv.innerText =
-      "اكتب رقم الحساب";
+      "اكتب آخر 6 أرقام";
+
+    return;
+  }
+
+  if (input.length > 6) {
+
+    resultDiv.innerText =
+      "اكتب آخر 6 أرقام فقط";
 
     return;
   }
@@ -48,79 +46,54 @@ async function searchAccount() {
     const sheet =
       context.workbook.worksheets.getActiveWorksheet();
 
-    // آخر صف مستخدم في العمود C
-    const usedRange =
-      sheet.getUsedRange();
+    const range =
+      sheet.getRange("C1:C50000");
 
-    usedRange.load("rowCount");
-
-    await context.sync();
-
-    const lastRow =
-      usedRange.rowCount;
-
-    // تحميل عمود C فقط
-    const accountRange =
-      sheet.getRange(
-        `C1:C${lastRow}`
-      );
-
-    accountRange.load("text");
+    range.load("text");
 
     await context.sync();
 
-    const values =
-      accountRange.text;
+    const values = range.text;
 
-    let foundRow = -1;
+    let output = "";
+    let found = false;
 
     for (let r = 0; r < values.length; r++) {
 
-      const cellValue =
-        cleanValue(values[r][0]);
+      let acc = cleanValue(values[r][0]);
 
-      if (!cellValue) continue;
+      // نقارن آخر 6 أرقام
+      let last6 = acc.slice(-6);
 
-      const normalizedCell =
-        removeLeadingZeros(cellValue);
+      if (last6 === input) {
 
-      if (
-        cellValue === accountNumber ||
-        normalizedCell === normalizedInput
-      ) {
+        const realRow = r + 1;
 
-        foundRow = r + 1;
-        break;
+        const nameCell =
+          sheet.getRange("B" + realRow);
 
+        const fullAccCell =
+          sheet.getRange("C" + realRow);
+
+        nameCell.load("text");
+        fullAccCell.load("text");
+
+        await context.sync();
+
+        output +=
+          `✔ ${fullAccCell.text[0][0]} → ${nameCell.text[0][0]}\n`;
+
+        found = true;
       }
     }
 
-    if (foundRow === -1) {
+    if (!found) {
 
-      resultDiv.innerText =
-        "رقم الحساب غير موجود";
+      output = "لا توجد نتائج";
 
-      return;
     }
 
-    // تحميل الاسم فقط
-    const nameCell =
-      sheet.getRange(
-        `B${foundRow}`
-      );
-
-    nameCell.load("text");
-
-    // تحديد الخلية
-    sheet
-      .getRange(`C${foundRow}`)
-      .select();
-
-    await context.sync();
-
-    resultDiv.innerText =
-      "الاسم: " +
-      nameCell.text[0][0];
+    resultDiv.innerText = output;
 
   });
 
