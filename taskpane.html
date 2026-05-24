@@ -1,296 +1,80 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8" />
-  <title>Excel Smart Search</title>
-
-  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-  <script src="taskpane.js" defer></script>
+  <title>بحث رقم الحساب</title>
 
   <style>
-    *{
-      box-sizing:border-box;
+    body {
+      font-family: Arial;
+      padding: 15px;
+      background: #f5f5f5;
     }
 
-    body{
-      font-family:"Segoe UI",sans-serif;
-      background:linear-gradient(135deg,#eef2f7,#f7f9fc);
-      padding:20px;
-      margin:0;
+    .box {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
 
-    .card{
-      background:white;
-      border-radius:14px;
-      padding:18px;
-      box-shadow:0 8px 20px rgba(0,0,0,0.08);
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
     }
 
-    h2{
-      margin:0 0 12px 0;
-      font-size:16px;
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      background: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
     }
 
-    .split-box{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
+    button:hover {
+      background: #106ebe;
     }
 
-    .box{
-      display:flex;
-      flex-direction:column;
+    #result {
+      margin-top: 15px;
+      padding: 10px;
+      background: #eef6ff;
+      border-radius: 6px;
+      font-size: 18px;
+      word-break: break-word;
     }
-
-    label{
-      margin-bottom:6px;
-      font-size:11px;
-      font-weight:600;
-      color:#444;
-    }
-
-    textarea{
-      width:100%;
-      height:150px;
-      padding:8px;
-      border-radius:12px;
-      border:1px solid #ddd;
-      resize:none;
-      font-size:11px;
-      background:#fafafa;
-      font-family:monospace;
-    }
-
-    .btns{
-      margin-top:14px;
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
-    }
-
-    button{
-      padding:9px 12px;
-      border:none;
-      border-radius:8px;
-      cursor:pointer;
-      font-size:12px;
-      transition:0.2s;
-    }
-
-    button:hover{
-      opacity:0.9;
-    }
-
-    .search-btn{
-      background:#4a90e2;
-      color:white;
-    }
-
-    .show-btn{
-      background:#f1f1f1;
-      color:#333;
-    }
-
-    .stats-box{
-      margin-top:15px;
-      background:#f9fafc;
-      border-radius:12px;
-      padding:12px;
-      border:1px solid #e5e7eb;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
-
-    .stat-item{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      font-size:12px;
-    }
-
-    /* ✅ رسالة النجاح */
-    #successMsg{
-      display:none;
-      text-align:center;
-      color:#1a7f37;
-      font-size:12px;
-      font-weight:bold;
-      padding:8px;
-      border-radius:8px;
-      background:#eefbf1;
-      border:1px solid #c9ebd1;
-      margin-top:4px;
-    }
-
-    .results-card{
-      margin-top:12px;
-      background:white;
-      border-radius:14px;
-      padding:18px;
-      box-shadow:0 8px 20px rgba(0,0,0,0.08);
-    }
-
-    #resultsTable{
-      max-height:400px;
-      overflow:auto;
-      border:1px solid #eee;
-      border-radius:10px;
-      background:white;
-    }
-
-    table{
-      width:100%;
-      border-collapse:collapse;
-      direction:rtl;
-      font-size:12px;
-    }
-
-    thead{
-      background:#f3f6fb;
-      position:sticky;
-      top:0;
-      z-index:2;
-    }
-
-    th,td{
-      padding:10px;
-      border-bottom:1px solid #eee;
-    }
-
-    th{
-      font-weight:bold;
-    }
-
-    td.name{
-      text-align:right;
-      direction:rtl;
-      font-weight:600;
-    }
-
-    td.number{
-      text-align:left;
-      direction:ltr;
-      font-family:monospace;
-    }
-
-    .empty{
-      padding:14px;
-      text-align:center;
-      color:#888;
-    }
-
-    .error{
-      color:#b00020;
-      font-weight:bold;
-    }
-
   </style>
 </head>
 
 <body>
 
-  <div class="card">
+  <div class="box">
 
-    <h2>🔎 Excel Smart Search</h2>
+    <h2>بحث رقم الحساب</h2>
 
-    <div class="split-box">
+    <input type="text" id="accountNumber" placeholder="اكتب رقم الحساب">
 
-      <div class="box">
-        <label>🔢 الرقم</label>
-        <textarea id="numberBox"></textarea>
-      </div>
+    <button id="searchBtn">بحث</button>
 
-      <div class="box">
-        <label>👤 الاسم</label>
-        <textarea id="nameBox"></textarea>
-      </div>
-
-    </div>
-
-    <div class="btns">
-
-      <button
-        class="show-btn"
-        onclick="document.getElementById('fileInput').click()"
-      >
-        📁 رفع ملف
-      </button>
-
-      <input
-        type="file"
-        id="fileInput"
-        accept=".xlsx,.xls"
-        hidden
-      />
-
-      <button
-        class="show-btn"
-        onclick="showAllRows()"
-      >
-        👁️ إظهار
-      </button>
-
-      <button
-        class="search-btn"
-        onclick="searchNumber()"
-      >
-        🔍 بحث
-      </button>
-
-      <button
-        class="show-btn"
-        onclick="clearBox()"
-      >
-        🧹 مسح
-      </button>
-
-    </div>
-
-    <!-- =========================
-         📊 STATUS
-    ========================= -->
-
-    <div class="stats-box">
-
-      <div class="stat-item">
-        <span>📋 القيم المدخلة:</span>
-        <span id="inputCount">0</span>
-      </div>
-
-      <div class="stat-item">
-        <span>📊 الحالة:</span>
-        <span id="liveStatus">جاهز للبحث 🚀</span>
-      </div>
-
-      <!-- ✅ الرسالة -->
-      <div id="successMsg">
-        كل القيم صحيحة ✅
-      </div>
-
+    <div id="result">
+      النتيجة تظهر هنا
     </div>
 
   </div>
 
-  <!-- =========================
-       📊 RESULTS
-  ========================= -->
-
-  <div class="results-card">
-
-    <h2>📊 نتائج البحث</h2>
-
-    <div id="resultsTable">
-
-      <div class="empty">
-        لا توجد نتائج بعد
-      </div>
-
-    </div>
-
-  </div>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script src="taskpane.js"></script>
 
 </body>
+
 </html>
