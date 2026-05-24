@@ -1,24 +1,37 @@
 Office.onReady(async () => {
 
+  // =========================
+  // 🔢 GET LAST 6 DIGITS
+  // =========================
   function getLast6(value) {
+
     return String(value || "")
       .replace(/\D/g, "")
       .slice(-6);
   }
 
   // =========================
-  // ⚡ CACHE DATA
+  // ⚡ DATA STORAGE
   // =========================
   let DATA = [];
 
+  // =========================
+  // 📥 LOAD DATA FROM EXCEL
+  // =========================
   async function loadData() {
 
     await Excel.run(async (context) => {
 
-      const sheet = context.workbook.worksheets.getActiveWorksheet();
-      const range = sheet.getUsedRange();
+      const sheet =
+        context.workbook
+          .worksheets
+          .getActiveWorksheet();
+
+      const range =
+        sheet.getUsedRange();
 
       range.load("values");
+
       await context.sync();
 
       DATA = range.values || [];
@@ -35,20 +48,16 @@ Office.onReady(async () => {
   // =========================
   function updateCounter() {
 
-    const nameBox =
-      document.getElementById("nameBox");
-
-    const numberBox =
-      document.getElementById("numberBox");
-
     const names =
-      (nameBox.value || "")
+      document.getElementById("nameBox")
+        .value
         .split("\n")
         .map(v => v.trim())
         .filter(Boolean);
 
     const numbers =
-      (numberBox.value || "")
+      document.getElementById("numberBox")
+        .value
         .split("\n")
         .map(v => v.trim())
         .filter(Boolean);
@@ -91,19 +100,22 @@ Office.onReady(async () => {
               workbook.SheetNames[0]
             ];
 
-          const rows =
-            XLSX.utils
-              .sheet_to_json(sheet, { header: 1 })
-              .slice(1);
+          // 🔥 STORE FILE DATA
+          DATA =
+            XLSX.utils.sheet_to_json(sheet, {
+              header: 1
+            });
 
-          // B = الاسم
+          // 🔥 FILL NAMES FROM COLUMN B
           document.getElementById("nameBox").value =
-            rows.map(r => String(r[1] || ""))
+            DATA.slice(1)
+              .map(r => String(r[1] || ""))
               .join("\n");
 
-          // C = الرقم
+          // 🔥 FILL NUMBERS FROM COLUMN C
           document.getElementById("numberBox").value =
-            rows.map(r => String(r[2] || ""))
+            DATA.slice(1)
+              .map(r => String(r[2] || ""))
               .join("\n");
 
           updateCounter();
@@ -132,50 +144,51 @@ Office.onReady(async () => {
   // =========================
   window.searchNumber = function () {
 
-    const nameSet = new Set(
+    // 🔥 INPUT NAMES
+    const names =
       document.getElementById("nameBox")
         .value
         .toLowerCase()
         .split("\n")
         .map(v => v.trim())
-        .filter(Boolean)
-    );
+        .filter(Boolean);
 
-    const numberSet = new Set(
+    // 🔥 INPUT NUMBERS
+    const numbers =
       document.getElementById("numberBox")
         .value
         .split("\n")
         .map(v => getLast6(v))
-        .filter(v => v.length === 6)
-    );
+        .filter(Boolean);
 
     let results = [];
 
+    // 🔥 LOOP DATA
     for (let i = 1; i < DATA.length; i++) {
 
       const row = DATA[i];
 
-      // B = الاسم
-      const name =
+      // 🔥 COLUMN B = NAME
+      const excelName =
         String(row[1] || "")
           .toLowerCase()
           .trim();
 
-      // C = الرقم
-      const fullNumber =
-        String(row[2] || "");
+      // 🔥 COLUMN C = ACCOUNT NUMBER
+      const excelNumber =
+        getLast6(row[2]);
 
-      const last6 =
-        getLast6(fullNumber);
-
+      // 🔥 PARTIAL NAME SEARCH
       const nameMatch =
-        nameSet.size === 0 ||
-        nameSet.has(name);
+        names.length === 0 ||
+        names.some(n => excelName.includes(n));
 
+      // 🔥 NUMBER MATCH
       const numberMatch =
-        numberSet.size === 0 ||
-        numberSet.has(last6);
+        numbers.length === 0 ||
+        numbers.includes(excelNumber);
 
+      // 🔥 PUSH RESULT
       if (nameMatch && numberMatch) {
         results.push(row);
       }
@@ -195,13 +208,14 @@ Office.onReady(async () => {
     const box =
       document.getElementById("resultsTable");
 
+    // 🔥 NO RESULTS
     if (!data.length) {
 
       box.innerHTML = `
         <div style="
           padding:12px;
-          font-weight:bold;
           color:#b00020;
+          font-weight:bold;
         ">
           ❌ لا توجد نتائج
         </div>
@@ -217,7 +231,9 @@ Office.onReady(async () => {
         font-size:12px;
       ">
         <thead>
-          <tr style="background:#f3f6fb;">
+          <tr style="
+            background:#f3f6fb;
+          ">
             <th>#</th>
             <th>الاسم</th>
             <th>رقم الحساب الكامل</th>
@@ -226,6 +242,7 @@ Office.onReady(async () => {
         <tbody>
     `;
 
+    // 🔥 TABLE ROWS
     for (let i = 0; i < data.length; i++) {
 
       html += `
@@ -251,6 +268,7 @@ Office.onReady(async () => {
   window.clearBox = function () {
 
     document.getElementById("nameBox").value = "";
+
     document.getElementById("numberBox").value = "";
 
     document.getElementById("resultsTable").innerHTML =
@@ -263,7 +281,8 @@ Office.onReady(async () => {
       </div>
       `;
 
-    document.getElementById("inputCount").innerText = "0";
+    document.getElementById("inputCount").innerText =
+      "0";
 
     document.getElementById("liveStatus").innerText =
       "جاهز للبحث 🚀";
