@@ -8,8 +8,8 @@ Office.onReady(() => {
 function cleanValue(value) {
 
   return String(value || "")
-    .trim()
-    .replace(/\s+/g, "");
+    .replace(/\s+/g, "")
+    .trim();
 
 }
 
@@ -22,6 +22,9 @@ function removeLeadingZeros(value) {
 
 async function searchAccount() {
 
+  const resultDiv =
+    document.getElementById("result");
+
   const accountNumber =
     cleanValue(
       document.getElementById("accountNumber").value
@@ -32,33 +35,51 @@ async function searchAccount() {
 
   if (!accountNumber) {
 
-    document.getElementById("result").innerText =
+    resultDiv.innerText =
       "اكتب رقم الحساب";
 
     return;
   }
+
+  resultDiv.innerText = "جاري البحث...";
 
   await Excel.run(async (context) => {
 
     const sheet =
       context.workbook.worksheets.getActiveWorksheet();
 
-    // عمود رقم الحساب = C
+    // آخر صف مستخدم في العمود C
+    const usedRange =
+      sheet.getUsedRange();
+
+    usedRange.load("rowCount");
+
+    await context.sync();
+
+    const lastRow =
+      usedRange.rowCount;
+
+    // تحميل عمود C فقط
     const accountRange =
-      sheet.getRange("C1:C50000");
+      sheet.getRange(
+        `C1:C${lastRow}`
+      );
 
     accountRange.load("text");
 
     await context.sync();
 
-    const values = accountRange.text;
+    const values =
+      accountRange.text;
 
-    let found = false;
+    let foundRow = -1;
 
     for (let r = 0; r < values.length; r++) {
 
       const cellValue =
         cleanValue(values[r][0]);
+
+      if (!cellValue) continue;
 
       const normalizedCell =
         removeLeadingZeros(cellValue);
@@ -68,42 +89,38 @@ async function searchAccount() {
         normalizedCell === normalizedInput
       ) {
 
-        found = true;
-
-        const realRow = r + 1;
-
-        // الاسم من العمود B
-        const nameCell =
-          sheet.getRange("B" + realRow);
-
-        nameCell.load("text");
-
-        // تحديد خلية رقم الحساب
-        const foundCell =
-          sheet.getRange("C" + realRow);
-
-        foundCell.select();
-
-        await context.sync();
-
-        const finalName =
-          nameCell.text[0][0];
-
-        document.getElementById("result").innerText =
-          "الاسم: " + finalName;
-
+        foundRow = r + 1;
         break;
+
       }
     }
 
-    if (!found) {
+    if (foundRow === -1) {
 
-      document.getElementById("result").innerText =
+      resultDiv.innerText =
         "رقم الحساب غير موجود";
 
+      return;
     }
 
+    // تحميل الاسم فقط
+    const nameCell =
+      sheet.getRange(
+        `B${foundRow}`
+      );
+
+    nameCell.load("text");
+
+    // تحديد الخلية
+    sheet
+      .getRange(`C${foundRow}`)
+      .select();
+
     await context.sync();
+
+    resultDiv.innerText =
+      "الاسم: " +
+      nameCell.text[0][0];
 
   });
 
