@@ -2,6 +2,7 @@
 <html>
 
 <head>
+
   <meta charset="UTF-8" />
   <title>Search</title>
 
@@ -79,7 +80,8 @@
 
     }
 
-    button, .uploadBtn {
+    button,
+    .uploadBtn {
 
       flex:1;
 
@@ -143,15 +145,17 @@
 
     }
 
-    .resultHeader{
+    .resultHeader {
 
       display:flex;
       justify-content:flex-end;
+      gap:8px;
       margin-top:12px;
 
     }
 
-    #exportBtn{
+    #exportBtn,
+    #clearBtn {
 
       padding:8px 12px;
 
@@ -163,17 +167,21 @@
 
       border-radius:10px;
 
-      background:linear-gradient(135deg,#28a745,#1f7a33);
       color:white;
 
       transition:0.2s;
 
     }
 
-    #exportBtn:hover{
+    #exportBtn {
 
-      transform:translateY(-1px);
-      box-shadow:0 6px 15px rgba(40,167,69,0.25);
+      background:linear-gradient(135deg,#28a745,#1f7a33);
+
+    }
+
+    #clearBtn {
+
+      background:linear-gradient(135deg,#dc3545,#a71d2a);
 
     }
 
@@ -198,6 +206,7 @@
     }
 
   </style>
+
 </head>
 
 <body>
@@ -212,24 +221,45 @@
 
     <div class="btnGroup">
 
-      <button id="searchBtn">🔎 بحث</button>
+      <button id="searchBtn">
+        🔎 بحث
+      </button>
 
       <label class="uploadBtn">
+
         📁 رفع ملف
-        <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+
+        <input
+          type="file"
+          id="excelFile"
+          accept=".xlsx,.xls,.csv">
+
       </label>
 
     </div>
 
     <div class="resultHeader">
-      <button id="exportBtn">📤 Export</button>
+
+      <button id="clearBtn">
+        🗑 مسح
+      </button>
+
+      <button id="exportBtn">
+        📤 Export
+      </button>
+
     </div>
 
-    <div id="result">النتائج تظهر هنا</div>
+    <div id="result">
+      النتائج تظهر هنا
+    </div>
 
   </div>
 
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
   <script src="taskpane.js"></script>
 
 </body>
