@@ -173,9 +173,7 @@ function importAccountsFromFile(e) {
 
           if (value.trim() !== "") {
 
-            accounts.push(
-              value.trim()
-            );
+            accounts.push(value.trim());
 
           }
 
@@ -190,6 +188,11 @@ function importAccountsFromFile(e) {
 
       resultDiv.innerText =
         `✅ تم تحميل ${accounts.length} قيمة`;
+
+      // =========================
+      // مهم: إعادة تفعيل رفع نفس الملف
+      // =========================
+      e.target.value = "";
 
     } catch (error) {
 
@@ -301,14 +304,10 @@ async function searchAccount() {
             r + 1;
 
           const nameCell =
-            sheet.getRange(
-              "B" + realRow
-            );
+            sheet.getRange("B" + realRow);
 
           const accCell =
-            sheet.getRange(
-              "C" + realRow
-            );
+            sheet.getRange("C" + realRow);
 
           nameCell.load("text");
           accCell.load("text");
@@ -325,10 +324,8 @@ async function searchAccount() {
             `👤 ${name}\n📌 ${account}\n\n`;
 
           resultsData.push({
-
             name,
             account
-
           });
 
           found = true;
@@ -387,31 +384,24 @@ async function exportExcel() {
         .add("Export");
 
     const data = [
-
       ["رقم الحساب", "الاسم"]
-
     ];
 
     resultsData.forEach(item => {
 
       data.push([
-
         item.account,
         item.name
-
       ]);
 
     });
 
     const range =
-      sheet.getRange(
-        `A1:B${data.length}`
-      );
+      sheet.getRange(`A1:B${data.length}`);
 
     range.values = data;
 
-    range.format
-      .autofitColumns();
+    range.format.autofitColumns();
 
     sheet.activate();
 
