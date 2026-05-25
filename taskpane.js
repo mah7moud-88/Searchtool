@@ -5,30 +5,23 @@ Office.onReady(() => {
   const clearBtn = document.getElementById("clearBtn");
   const excelFile = document.getElementById("excelFile");
 
-
-  // رفع الملف
   if (excelFile) {
     excelFile.addEventListener("change", importAccountsFromFile);
   }
 
-  // البحث
   if (searchBtn) {
     searchBtn.onclick = searchAccount;
   }
 
-  // التصدير
   if (exportBtn) {
     exportBtn.onclick = exportExcel;
   }
 
-  // المسح
   if (clearBtn) {
     clearBtn.onclick = () => {
-
       document.getElementById("accountNumber").value = "";
       document.getElementById("result").innerText = "تم المسح";
       resultsData = [];
-
     };
   }
 
@@ -46,13 +39,43 @@ function cleanValue(value) {
 
 
 // =========================
-// تخزين النتائج
+// البيانات
 // =========================
 let resultsData = [];
+let accountIndex = {};
 
 
 // =========================
-// رفع ملف Excel
+// بناء Index سريع
+// =========================
+function buildIndex(values) {
+
+  accountIndex = {};
+
+  for (let r = 0; r < values.length; r++) {
+
+    const cell = cleanValue(values[r][0]);
+
+    if (!cell) continue;
+
+    // تخزين الرقم كما هو
+    if (accountIndex[cell] === undefined) {
+      accountIndex[cell] = r;
+    }
+
+    // دعم آخر 6 أرقام
+    if (cell.length >= 6) {
+      const last6 = cell.slice(-6);
+      if (accountIndex[last6] === undefined) {
+        accountIndex[last6] = r;
+      }
+    }
+  }
+}
+
+
+// =========================
+// رفع Excel
 // =========================
 function importAccountsFromFile(e) {
 
@@ -64,34 +87,17 @@ function importAccountsFromFile(e) {
 
   const reader = new FileReader();
 
-  reader.onerror = function () {
-    resultDiv.innerText = "❌ المتصفح فشل في قراءة الملف";
-  };
-
   reader.onload = function (evt) {
 
     try {
 
-      if (typeof XLSX === "undefined") {
-        resultDiv.innerText = "❌ مكتبة XLSX غير محملة";
-        return;
-      }
-
       const data = new Uint8Array(evt.target.result);
-
-      const workbook = XLSX.read(data, {
-        type: "array",
-        raw: false,
-        cellText: true,
-        cellDates: true
-      });
+      const workbook = XLSX.read(data, { type: "array" });
 
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
 
-      const rows = XLSX.utils.sheet_to_json(worksheet, {
-        header: 1
-      });
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
       let accounts = [];
 
@@ -99,9 +105,7 @@ function importAccountsFromFile(e) {
         for (let c = 0; c < rows[r].length; c++) {
 
           const value = String(rows[r][c] ?? "");
-          if (value.trim()) {
-            accounts.push(value.trim());
-          }
+          if (value.trim()) accounts.push(value.trim());
 
         }
       }
@@ -114,8 +118,8 @@ function importAccountsFromFile(e) {
 
       e.target.value = "";
 
-    } catch (error) {
-      resultDiv.innerText = "❌ " + error.message;
+    } catch (err) {
+      resultDiv.innerText = "❌ " + err.message;
     }
 
   };
@@ -125,7 +129,7 @@ function importAccountsFromFile(e) {
 
 
 // =========================
-// البحث
+// البحث السريع (INDEX)
 // =========================
 async function searchAccount() {
 
@@ -159,59 +163,47 @@ async function searchAccount() {
 
     const values = range.text;
 
+    // ⚡ بناء Index مرة واحدة
+    buildIndex(values);
+
     let output = "";
 
     for (let acc of accounts) {
 
-      let found = false;
-      const isLast6 = acc.length <= 6;
+      let rowIndex = accountIndex[acc];
 
-      for (let r = 0; r < values.length; r++) {
-
-        let cellValue = cleanValue(values[r][0]);
-        let match = false;
-
-        if (isLast6) {
-          if (cellValue.slice(-acc.length) === acc) {
-            match = true;
-          }
-        } else {
-          if (cellValue === acc) {
-            match = true;
-          }
-        }
-
-        if (match) {
-
-          const rowIndex = r + 1;
-
-          const nameCell = sheet.getRange("B" + rowIndex);
-          const accCell = sheet.getRange("C" + rowIndex);
-
-          nameCell.load("text");
-          accCell.load("text");
-
-          await context.sync();
-
-          const name = nameCell.text[0][0];
-          const account = accCell.text[0][0];
-
-          resultsData.push({
-            name,
-            account,
-            status: "موجود"
-          });
-
-          output += `👤 ${name}\n📌 ${account}\n\n`;
-
-          found = true;
-          foundCount++;
-
-          break;
-        }
+      // لو مش موجود نجرب آخر 6 أرقام
+      if (rowIndex === undefined && acc.length <= 6) {
+        const last6 = acc.slice(-acc.length);
+        rowIndex = accountIndex[last6];
       }
 
-      if (!found) {
+      if (rowIndex !== undefined) {
+
+        const realRow = rowIndex + 1;
+
+        const nameCell = sheet.getRange("B" + realRow);
+        const accCell = sheet.getRange("C" + realRow);
+
+        nameCell.load("text");
+        accCell.load("text");
+
+        await context.sync();
+
+        const name = nameCell.text[0][0];
+        const account = accCell.text[0][0];
+
+        resultsData.push({
+          name,
+          account,
+          status: "موجود"
+        });
+
+        output += `👤 ${name}\n📌 ${account}\n\n`;
+
+        foundCount++;
+
+      } else {
 
         resultsData.push({
           name: "",
@@ -264,14 +256,12 @@ async function exportExcel() {
     range.values = data;
     range.format.autofitColumns();
 
-    // تلوين غير الموجود بالأحمر
+    // تلوين غير الموجود
     for (let i = 1; i < data.length; i++) {
 
       if (data[i][2] === "غير موجود") {
-
-        const row = sheet.getRange(`A${i + 1}:C${i + 1}`);
-        row.format.fill.color = "#FFCCCC";
-
+        sheet.getRange(`A${i + 1}:C${i + 1}`)
+          .format.fill.color = "#F2F2F2";
       }
 
     }
