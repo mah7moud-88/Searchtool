@@ -1,73 +1,35 @@
 Office.onReady(() => {
 
-  const searchBtn =
-    document.getElementById("searchBtn");
-
-  const exportBtn =
-    document.getElementById("exportBtn");
-
-  const clearBtn =
-    document.getElementById("clearBtn");
-
-  const excelFile =
-    document.getElementById("excelFile");
+  const searchBtn = document.getElementById("searchBtn");
+  const exportBtn = document.getElementById("exportBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const excelFile = document.getElementById("excelFile");
 
 
-  // =========================
   // رفع الملف
-  // =========================
   if (excelFile) {
-
-    excelFile.addEventListener(
-      "change",
-      importAccountsFromFile
-    );
-
+    excelFile.addEventListener("change", importAccountsFromFile);
   }
 
-
-  // =========================
   // البحث
-  // =========================
   if (searchBtn) {
-
-    searchBtn.onclick =
-      searchAccount;
-
+    searchBtn.onclick = searchAccount;
   }
 
-
-  // =========================
   // التصدير
-  // =========================
   if (exportBtn) {
-
-    exportBtn.onclick =
-      exportExcel;
-
+    exportBtn.onclick = exportExcel;
   }
 
-
-  // =========================
   // المسح
-  // =========================
   if (clearBtn) {
-
     clearBtn.onclick = () => {
 
-      document.getElementById(
-        "accountNumber"
-      ).value = "";
-
-      document.getElementById(
-        "result"
-      ).innerText =
-        "تم المسح";
-
+      document.getElementById("accountNumber").value = "";
+      document.getElementById("result").innerText = "تم المسح";
       resultsData = [];
 
     };
-
   }
 
 });
@@ -77,136 +39,88 @@ Office.onReady(() => {
 // تنظيف النص
 // =========================
 function cleanValue(value) {
-
   return String(value || "")
     .trim()
     .replace(/\s+/g, "");
-
 }
 
 
+// =========================
+// تخزين النتائج
+// =========================
 let resultsData = [];
 
 
 // =========================
-// استيراد القيم من Excel
+// رفع ملف Excel
 // =========================
 function importAccountsFromFile(e) {
 
-  const file =
-    e.target.files[0];
-
+  const file = e.target.files[0];
   if (!file) return;
 
-  const resultDiv =
-    document.getElementById("result");
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerText = "جاري قراءة الملف...";
 
-  resultDiv.innerText =
-    "جاري قراءة الملف...";
+  const reader = new FileReader();
 
-  const reader =
-    new FileReader();
-
-  reader.onerror = function() {
-
-    resultDiv.innerText =
-      "❌ المتصفح فشل في قراءة الملف";
-
+  reader.onerror = function () {
+    resultDiv.innerText = "❌ المتصفح فشل في قراءة الملف";
   };
 
-  reader.onload = function(evt) {
+  reader.onload = function (evt) {
 
     try {
 
       if (typeof XLSX === "undefined") {
-
-        resultDiv.innerText =
-          "❌ مكتبة XLSX غير محملة";
-
+        resultDiv.innerText = "❌ مكتبة XLSX غير محملة";
         return;
-
       }
 
-      const data =
-        new Uint8Array(
-          evt.target.result
-        );
+      const data = new Uint8Array(evt.target.result);
 
-      const workbook =
-        XLSX.read(data, {
+      const workbook = XLSX.read(data, {
+        type: "array",
+        raw: false,
+        cellText: true,
+        cellDates: true
+      });
 
-          type: "array",
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
 
-          raw: false,
-
-          cellText: true,
-
-          cellDates: true
-
-        });
-
-      const firstSheet =
-        workbook.SheetNames[0];
-
-      const worksheet =
-        workbook.Sheets[firstSheet];
-
-      const rows =
-        XLSX.utils.sheet_to_json(
-          worksheet,
-          {
-            header: 1,
-            raw: false
-          }
-        );
+      const rows = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1
+      });
 
       let accounts = [];
 
       for (let r = 0; r < rows.length; r++) {
+        for (let c = 0; c < rows[r].length; c++) {
 
-        const row = rows[r];
-
-        for (let c = 0; c < row.length; c++) {
-
-          const value =
-            String(row[c] ?? "");
-
-          if (value.trim() !== "") {
-
+          const value = String(rows[r][c] ?? "");
+          if (value.trim()) {
             accounts.push(value.trim());
-
           }
 
         }
-
       }
 
-      document.getElementById(
-        "accountNumber"
-      ).value =
+      document.getElementById("accountNumber").value =
         accounts.join("\n");
 
       resultDiv.innerText =
         `✅ تم تحميل ${accounts.length} قيمة`;
 
-      // =========================
-      // مهم: إعادة تفعيل رفع نفس الملف
-      // =========================
       e.target.value = "";
 
     } catch (error) {
-
-      console.error(error);
-
-      resultDiv.innerText =
-        "❌ " + error.message;
-
+      resultDiv.innerText = "❌ " + error.message;
     }
 
   };
 
   reader.readAsArrayBuffer(file);
-
 }
 
 
@@ -215,30 +129,21 @@ function importAccountsFromFile(e) {
 // =========================
 async function searchAccount() {
 
-  const resultDiv =
-    document.getElementById("result");
+  const resultDiv = document.getElementById("result");
 
-  let input =
-    document.getElementById(
-      "accountNumber"
-    ).value;
+  let input = document.getElementById("accountNumber").value;
 
   if (!input.trim()) {
-
-    resultDiv.innerText =
-      "اكتب أرقام الحسابات";
-
+    resultDiv.innerText = "اكتب أرقام الحسابات";
     return;
-
   }
 
   const accounts = input
     .split("\n")
-    .map(x => cleanValue(x))
+    .map(cleanValue)
     .filter(x => x);
 
-  resultDiv.innerText =
-    "جاري البحث...";
+  resultDiv.innerText = "جاري البحث...";
 
   resultsData = [];
 
@@ -246,113 +151,81 @@ async function searchAccount() {
 
   await Excel.run(async (context) => {
 
-    const sheet =
-      context.workbook
-        .worksheets
-        .getActiveWorksheet();
-
-    const range =
-      sheet.getRange("C1:C50000");
+    const sheet = context.workbook.worksheets.getActiveWorksheet();
+    const range = sheet.getRange("C1:C50000");
 
     range.load("text");
-
     await context.sync();
 
-    const values =
-      range.text;
+    const values = range.text;
 
     let output = "";
 
     for (let acc of accounts) {
 
       let found = false;
-
-      const isLast6 =
-        acc.length <= 6;
+      const isLast6 = acc.length <= 6;
 
       for (let r = 0; r < values.length; r++) {
 
-        let cellValue =
-          cleanValue(values[r][0]);
-
+        let cellValue = cleanValue(values[r][0]);
         let match = false;
 
         if (isLast6) {
-
-          if (
-            cellValue.slice(-acc.length)
-            === acc
-          ) {
-
+          if (cellValue.slice(-acc.length) === acc) {
             match = true;
-
           }
-
         } else {
-
           if (cellValue === acc) {
-
             match = true;
-
           }
-
         }
 
         if (match) {
 
-          const realRow =
-            r + 1;
+          const rowIndex = r + 1;
 
-          const nameCell =
-            sheet.getRange("B" + realRow);
-
-          const accCell =
-            sheet.getRange("C" + realRow);
+          const nameCell = sheet.getRange("B" + rowIndex);
+          const accCell = sheet.getRange("C" + rowIndex);
 
           nameCell.load("text");
           accCell.load("text");
 
           await context.sync();
 
-          const name =
-            nameCell.text[0][0];
-
-          const account =
-            accCell.text[0][0];
-
-          output +=
-            `👤 ${name}\n📌 ${account}\n\n`;
+          const name = nameCell.text[0][0];
+          const account = accCell.text[0][0];
 
           resultsData.push({
             name,
-            account
+            account,
+            status: "موجود"
           });
 
-          found = true;
+          output += `👤 ${name}\n📌 ${account}\n\n`;
 
+          found = true;
           foundCount++;
 
           break;
-
         }
-
       }
 
       if (!found) {
 
-        output +=
-          `❌ ${acc} → غير موجود\n\n`;
+        resultsData.push({
+          name: "",
+          account: acc,
+          status: "غير موجود"
+        });
 
+        output += `❌ ${acc} → غير موجود\n\n`;
       }
-
     }
 
-    output =
+    resultDiv.innerText =
       `✅ تم العثور على ${foundCount} من أصل ${accounts.length}\n\n`
       + output;
-
-    resultDiv.innerText =
-      output;
 
   });
 
@@ -360,51 +233,50 @@ async function searchAccount() {
 
 
 // =========================
-// تصدير النتائج
+// التصدير
 // =========================
 async function exportExcel() {
 
-  const resultDiv =
-    document.getElementById("result");
+  const resultDiv = document.getElementById("result");
 
   if (!resultsData.length) {
-
-    resultDiv.innerText =
-      "لا يوجد بيانات للتصدير";
-
+    resultDiv.innerText = "لا يوجد بيانات للتصدير";
     return;
-
   }
 
   await Excel.run(async (context) => {
 
-    const sheet =
-      context.workbook
-        .worksheets
-        .add("Export");
+    const sheet = context.workbook.worksheets.add("Export");
 
     const data = [
-      ["رقم الحساب", "الاسم"]
+      ["رقم الحساب", "الاسم", "الحالة"]
     ];
 
     resultsData.forEach(item => {
-
       data.push([
         item.account,
-        item.name
+        item.name,
+        item.status
       ]);
-
     });
 
-    const range =
-      sheet.getRange(`A1:B${data.length}`);
-
+    const range = sheet.getRange(`A1:C${data.length}`);
     range.values = data;
-
     range.format.autofitColumns();
 
-    sheet.activate();
+    // تلوين غير الموجود بالأحمر
+    for (let i = 1; i < data.length; i++) {
 
+      if (data[i][2] === "غير موجود") {
+
+        const row = sheet.getRange(`A${i + 1}:C${i + 1}`);
+        row.format.fill.color = "#FFCCCC";
+
+      }
+
+    }
+
+    sheet.activate();
     await context.sync();
 
   });
