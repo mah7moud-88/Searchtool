@@ -33,26 +33,27 @@ let resultsData = [];
 let accountIndex = {};
 let nameIndex = {};
 let pairIndex = {};
+let last6Index = {};
 
+// =========================
+// تنظيف
 // =========================
 function cleanValue(value) {
   return String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ");
+    .replace(/\s+/g, "");
 }
 
 // =========================
-function makeKey(name, account) {
-  return cleanValue(name) + "|" + cleanValue(account);
-}
-
+// index
 // =========================
 function buildIndex(values) {
 
   accountIndex = {};
   nameIndex = {};
   pairIndex = {};
+  last6Index = {};
 
   for (let r = 0; r < values.length; r++) {
 
@@ -73,9 +74,40 @@ function buildIndex(values) {
 
     const key = cleanName + "|" + cleanAcc;
     if (!pairIndex[key]) pairIndex[key] = r;
+
+    if (cleanAcc && cleanAcc.length >= 6) {
+      const last6 = cleanAcc.slice(-6);
+
+      if (!last6Index[last6]) {
+        last6Index[last6] = [];
+      }
+
+      last6Index[last6].push(r);
+    }
   }
 }
 
+// =========================
+// 🔥 البحث بالرقم (كامل أو آخر 6)
+// =========================
+function findAccountRows(acc) {
+
+  const cleanAcc = cleanValue(acc);
+
+  if (accountIndex[cleanAcc] !== undefined) {
+    return [accountIndex[cleanAcc]];
+  }
+
+  if (cleanAcc.length <= 6) {
+    return last6Index[cleanAcc] || [];
+  }
+
+  const last6 = cleanAcc.slice(-6);
+  return last6Index[last6] || [];
+}
+
+// =========================
+// رفع ملف
 // =========================
 function importAccountsFromFile(e) {
 
@@ -108,6 +140,8 @@ function importAccountsFromFile(e) {
 }
 
 // =========================
+// البحث
+// =========================
 async function searchAccount() {
 
   const resultDiv = document.getElementById("result");
@@ -115,8 +149,8 @@ async function searchAccount() {
   const accountInput = document.getElementById("accountNumber").value.trim();
   const nameInput = document.getElementById("customerName").value.trim();
 
-  const accounts = accountInput ? accountInput.split("\n").filter(Boolean) : [];
-  const names = nameInput ? nameInput.split("\n").filter(Boolean) : [];
+  const accounts = accountInput.split("\n").filter(Boolean);
+  const names = nameInput.split("\n").filter(Boolean);
 
   const totalCount = accounts.length + names.length;
 
@@ -139,24 +173,30 @@ async function searchAccount() {
 
     let output = "";
 
+    // =========================
+    // مستقل
+    // =========================
     if (searchMode === "independent") {
 
       for (let acc of accounts) {
 
-        const rowIndex = accountIndex[cleanValue(acc)];
+        const rows = findAccountRows(acc);
 
-        if (rowIndex !== undefined && values[rowIndex]) {
+        if (rows.length) {
 
-          const row = values[rowIndex];
+          rows.forEach(rowIndex => {
 
-          resultsData.push({
-            name: row[0],
-            account: row[1],
-            status: "موجود"
+            const row = values[rowIndex];
+
+            resultsData.push({
+              name: row[0],
+              account: row[1],
+              status: "موجود"
+            });
+
+            output += `👤 ${row[0]}\n📌 ${row[1]}\n\n`;
+            foundCount++;
           });
-
-          output += `👤 ${row[0]}\n📌 ${row[1]}\n\n`;
-          foundCount++;
 
         } else {
 
@@ -200,7 +240,12 @@ async function searchAccount() {
         }
       }
 
-    } else {
+    }
+
+    // =========================
+    // مطابق
+    // =========================
+    else {
 
       for (let i = 0; i < Math.max(accounts.length, names.length); i++) {
 
@@ -209,23 +254,30 @@ async function searchAccount() {
 
         if (!acc || !name) continue;
 
-        const key = makeKey(name, acc);
-        const rowIndex = pairIndex[key];
+        const rows = findAccountRows(acc);
+        let matched = false;
 
-        if (rowIndex !== undefined && values[rowIndex]) {
+        for (let rowIndex of rows) {
 
           const row = values[rowIndex];
 
-          resultsData.push({
-            name: row[0],
-            account: row[1],
-            status: "موجود"
-          });
+          if (cleanValue(row[0]) === cleanValue(name)) {
 
-          output += `👤 ${row[0]}\n📌 ${row[1]}\n\n`;
-          foundCount++;
+            resultsData.push({
+              name: row[0],
+              account: row[1],
+              status: "موجود"
+            });
 
-        } else {
+            output += `👤 ${row[0]}\n📌 ${row[1]}\n\n`;
+
+            foundCount++;
+            matched = true;
+            break;
+          }
+        }
+
+        if (!matched) {
 
           resultsData.push({
             name,
@@ -244,6 +296,8 @@ async function searchAccount() {
   });
 }
 
+// =========================
+// Export
 // =========================
 async function exportExcel() {
 
