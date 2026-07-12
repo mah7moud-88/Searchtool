@@ -36,14 +36,6 @@ let pairIndex = {};
 let last6Index = {};
 
 // =========================
-// إعدادات الأعمدة
-// =========================
-// النطاق المقروء من الشيت: B1:N50000
-// الأعمدة داخل كل صف (values[r][...]) بالترتيب:
-// 0=B (الاسم) | 1=C (الحساب) | ... | 12=N (ملاحظة)
-const NOTE_COL_INDEX = 12; // عمود N
-
-// =========================
 // تنظيف
 // =========================
 function cleanValue(value) {
@@ -67,7 +59,6 @@ function buildIndex(values) {
 
     const name = values[r][0];
     const account = values[r][1];
-    const note = values[r][NOTE_COL_INDEX];
 
     const cleanName = cleanValue(name);
     const cleanAcc = cleanValue(account);
@@ -78,7 +69,7 @@ function buildIndex(values) {
 
     if (cleanName) {
       if (!nameIndex[cleanName]) nameIndex[cleanName] = [];
-      nameIndex[cleanName].push({ name, account, note });
+      nameIndex[cleanName].push({ name, account });
     }
 
     const key = cleanName + "|" + cleanAcc;
@@ -171,7 +162,7 @@ async function searchAccount() {
   await Excel.run(async (context) => {
 
     const sheet = context.workbook.worksheets.getActiveWorksheet();
-    const range = sheet.getRange("B1:N50000");
+    const range = sheet.getRange("B1:C50000");
 
     range.load("text");
     await context.sync();
@@ -196,16 +187,14 @@ async function searchAccount() {
           rows.forEach(rowIndex => {
 
             const row = values[rowIndex];
-            const note = row[NOTE_COL_INDEX];
 
             resultsData.push({
               name: row[0],
               account: row[1],
-              note: note,
               status: "موجود"
             });
 
-            output += `👤 ${row[0]}\n📌 ${row[1]}\n📝 ${note || "-"}\n\n`;
+            output += `👤 ${row[0]}\n📌 ${row[1]}\n\n`;
             foundCount++;
           });
 
@@ -214,7 +203,6 @@ async function searchAccount() {
           resultsData.push({
             name: "",
             account: acc,
-            note: "",
             status: "غير موجود"
           });
 
@@ -233,11 +221,10 @@ async function searchAccount() {
             resultsData.push({
               name: r.name,
               account: r.account,
-              note: r.note,
               status: "موجود"
             });
 
-            output += `👤 ${r.name}\n📌 ${r.account}\n📝 ${r.note || "-"}\n\n`;
+            output += `👤 ${r.name}\n📌 ${r.account}\n\n`;
             foundCount++;
           });
 
@@ -246,7 +233,6 @@ async function searchAccount() {
           resultsData.push({
             name,
             account: "",
-            note: "",
             status: "غير موجود"
           });
 
@@ -277,16 +263,13 @@ async function searchAccount() {
 
           if (cleanValue(row[0]) === cleanValue(name)) {
 
-            const note = row[NOTE_COL_INDEX];
-
             resultsData.push({
               name: row[0],
               account: row[1],
-              note: note,
               status: "موجود"
             });
 
-            output += `👤 ${row[0]}\n📌 ${row[1]}\n📝 ${note || "-"}\n\n`;
+            output += `👤 ${row[0]}\n📌 ${row[1]}\n\n`;
 
             foundCount++;
             matched = true;
@@ -299,7 +282,6 @@ async function searchAccount() {
           resultsData.push({
             name,
             account: acc,
-            note: "",
             status: "غير مطابق"
           });
 
@@ -330,13 +312,13 @@ async function exportExcel() {
 
     const sheet = context.workbook.worksheets.add("Export");
 
-    const data = [["رقم الحساب", "الاسم", "ملاحظة", "الحالة"]];
+    const data = [["رقم الحساب", "الاسم", "الحالة"]];
 
     resultsData.forEach(i => {
-      data.push([i.account, i.name, i.note || "", i.status]);
+      data.push([i.account, i.name, i.status]);
     });
 
-    const range = sheet.getRange(`A1:D${data.length}`);
+    const range = sheet.getRange(`A1:C${data.length}`);
     range.values = data;
     range.format.autofitColumns();
 
