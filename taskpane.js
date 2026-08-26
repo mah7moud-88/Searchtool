@@ -79,6 +79,15 @@ let last5Index = {};
 
 
 // ======================================================
+// عدد الصفوف التي نقرأها في كل دفعة
+// ======================================================
+
+const CHUNK_SIZE = 5000;
+
+const MAX_ROWS = 50000;
+
+
+// ======================================================
 // تنظيف البيانات
 // ======================================================
 
@@ -92,10 +101,10 @@ function cleanValue(value) {
 
 
 // ======================================================
-// بناء الفهارس
+// تصفير الفهارس
 // ======================================================
 
-function buildIndex(values) {
+function resetIndexes() {
 
   accountIndex = {};
   nameIndex = {};
@@ -103,118 +112,134 @@ function buildIndex(values) {
 
   last6Index = {};
   last5Index = {};
+}
 
 
-  for (let r = 0; r < values.length; r++) {
+// ======================================================
+// إضافة صف إلى الفهارس
+// ======================================================
 
-    // B = الاسم
-    // C = رقم الحساب
-    // N = الملاحظة
+function addRowToIndex(
+  row,
+  rowIndex
+) {
 
-    const name = values[r][0] ?? "";
-    const account = values[r][1] ?? "";
-    const note = values[r][12] ?? "";
+  // B = الاسم
+  // C = الحساب
+  // N = الملاحظة
 
-    const cleanName = cleanValue(name);
-    const cleanAcc = cleanValue(account);
+  const name =
+    row[0] ?? "";
+
+  const account =
+    row[1] ?? "";
+
+  const cleanName =
+    cleanValue(name);
+
+  const cleanAcc =
+    cleanValue(account);
 
 
-    // ==================================================
-    // الرقم الكامل
-    // ==================================================
+  // ==================================================
+  // الرقم الكامل
+  // ==================================================
+
+  if (cleanAcc) {
 
     if (
-      cleanAcc &&
       accountIndex[cleanAcc] === undefined
     ) {
 
       accountIndex[cleanAcc] = [];
     }
 
-    if (cleanAcc) {
+    accountIndex[cleanAcc].push(rowIndex);
+  }
 
-      accountIndex[cleanAcc].push(r);
+
+  // ==================================================
+  // الاسم
+  // ==================================================
+
+  if (cleanName) {
+
+    if (!nameIndex[cleanName]) {
+
+      nameIndex[cleanName] = [];
     }
 
-
-    // ==================================================
-    // الاسم
-    // نحفظ رقم الصف وليس البيانات فقط
-    // ==================================================
-
-    if (cleanName) {
-
-      if (!nameIndex[cleanName]) {
-        nameIndex[cleanName] = [];
-      }
-
-      nameIndex[cleanName].push(r);
-    }
+    nameIndex[cleanName].push(rowIndex);
+  }
 
 
-    // ==================================================
-    // الاسم + الرقم
-    // ==================================================
+  // ==================================================
+  // الاسم + الرقم
+  // ==================================================
 
-    if (cleanName && cleanAcc) {
+  if (
+    cleanName &&
+    cleanAcc
+  ) {
 
-      const key =
-        cleanName + "|" + cleanAcc;
+    const key =
+      cleanName + "|" + cleanAcc;
 
-      if (pairIndex[key] === undefined) {
-
-        pairIndex[key] = [];
-      }
-
-      pairIndex[key].push(r);
-    }
-
-
-    // ==================================================
-    // آخر 6 أرقام
-    // ==================================================
 
     if (
-      cleanAcc &&
-      cleanAcc.length >= 6
+      pairIndex[key] === undefined
     ) {
 
-      const last6 =
-        cleanAcc.slice(-6);
+      pairIndex[key] = [];
+    }
+
+    pairIndex[key].push(rowIndex);
+  }
 
 
-      if (!last6Index[last6]) {
+  // ==================================================
+  // آخر 6 أرقام
+  // ==================================================
 
-        last6Index[last6] = [];
-      }
+  if (
+    cleanAcc &&
+    cleanAcc.length >= 6
+  ) {
+
+    const last6 =
+      cleanAcc.slice(-6);
 
 
-      last6Index[last6].push(r);
+    if (!last6Index[last6]) {
+
+      last6Index[last6] = [];
     }
 
 
-    // ==================================================
-    // آخر 5 أرقام
-    // ==================================================
-
-    if (
-      cleanAcc &&
-      cleanAcc.length >= 5
-    ) {
-
-      const last5 =
-        cleanAcc.slice(-5);
+    last6Index[last6].push(rowIndex);
+  }
 
 
-      if (!last5Index[last5]) {
+  // ==================================================
+  // آخر 5 أرقام
+  // ==================================================
 
-        last5Index[last5] = [];
-      }
+  if (
+    cleanAcc &&
+    cleanAcc.length >= 5
+  ) {
+
+    const last5 =
+      cleanAcc.slice(-5);
 
 
-      last5Index[last5].push(r);
+    if (!last5Index[last5]) {
+
+      last5Index[last5] = [];
     }
 
+
+    last5Index[last5].push(rowIndex);
   }
 }
 
@@ -223,8 +248,8 @@ function buildIndex(values) {
 // البحث بالرقم
 //
 // كامل
-// آخر 5
 // آخر 6
+// آخر 5
 // ======================================================
 
 function findAccountRows(acc) {
@@ -239,7 +264,7 @@ function findAccountRows(acc) {
 
 
   // ==================================================
-  // 1️⃣ الرقم الكامل
+  // الرقم الكامل
   // ==================================================
 
   if (
@@ -251,7 +276,7 @@ function findAccountRows(acc) {
 
 
   // ==================================================
-  // 2️⃣ آخر 5 أرقام
+  // آخر 5 أرقام
   // ==================================================
 
   if (
@@ -265,7 +290,7 @@ function findAccountRows(acc) {
 
 
   // ==================================================
-  // 3️⃣ آخر 6 أرقام
+  // آخر 6 أرقام
   // ==================================================
 
   if (
@@ -279,8 +304,8 @@ function findAccountRows(acc) {
 
 
   // ==================================================
-  // 4️⃣ رقم أكبر من 6
-  // نبحث بآخر 6
+  // أكثر من 6 أرقام
+  // يبحث بآخر 6
   // ==================================================
 
   if (
@@ -394,79 +419,23 @@ function importAccountsFromFile(e) {
       document.getElementById(
         "result"
       ).innerText =
-        "تم تحميل الملف";
+        "✅ تم تحميل الملف";
 
 
     } catch (error) {
+
+      console.error(error);
 
       document.getElementById(
         "result"
       ).innerText =
         "❌ حدث خطأ أثناء قراءة الملف";
-
-      console.error(error);
     }
 
   };
 
 
   reader.readAsArrayBuffer(file);
-}
-
-
-// ======================================================
-// إضافة نتيجة
-// ======================================================
-
-function addResult(
-  row,
-  status
-) {
-
-  const name =
-    row[0] ?? "";
-
-  const account =
-    row[1] ?? "";
-
-  const note =
-    row[12] ?? "";
-
-
-  resultsData.push({
-
-    name: name,
-
-    account: account,
-
-    note: note,
-
-    status: status
-  });
-
-
-  return {
-    name,
-    account,
-    note,
-    status
-  };
-}
-
-
-// ======================================================
-// تنسيق نتيجة العرض
-// ======================================================
-
-function formatResult(
-  item
-) {
-
-  return (
-    `👤 ${item.name}\n` +
-    `📌 ${item.account}\n` +
-    `📝 ${item.note}\n\n`
-  );
 }
 
 
@@ -508,15 +477,6 @@ async function searchAccount() {
       .filter(Boolean);
 
 
-  const totalCount =
-    searchMode === "independent"
-      ? accounts.length + names.length
-      : Math.max(
-          accounts.length,
-          names.length
-        );
-
-
   if (
     accounts.length === 0 &&
     names.length === 0
@@ -529,15 +489,22 @@ async function searchAccount() {
   }
 
 
+  const totalCount =
+    searchMode === "independent"
+      ? accounts.length + names.length
+      : Math.max(
+          accounts.length,
+          names.length
+        );
+
+
   resultDiv.innerText =
-    "جاري البحث...";
+    "🔄 جاري قراءة بيانات Excel...";
 
 
   resultsData = [];
 
-  let foundCount = 0;
-
-  let output = "";
+  resetIndexes();
 
 
   try {
@@ -545,41 +512,150 @@ async function searchAccount() {
     await Excel.run(async (context) => {
 
 
-      const sheet =
-        context
-          .workbook
-          .worksheets
-          .getActiveWorksheet();
+      // ==================================================
+      // قراءة Excel على دفعات
+      // ==================================================
+
+      for (
+        let startRow = 0;
+        startRow < MAX_ROWS;
+        startRow += CHUNK_SIZE
+      ) {
+
+        const rowsToRead =
+          Math.min(
+            CHUNK_SIZE,
+            MAX_ROWS - startRow
+          );
+
+
+        // ==================================================
+        // B:C
+        //
+        // B = الاسم
+        // C = الحساب
+        // ==================================================
+
+        const nameAccountRange =
+          context
+            .workbook
+            .worksheets
+            .getActiveWorksheet()
+            .getRangeByIndexes(
+              startRow,
+              1,
+              rowsToRead,
+              2
+            );
+
+
+        // ==================================================
+        // N
+        //
+        // N = الملاحظة
+        // ==================================================
+
+        const noteRange =
+          context
+            .workbook
+            .worksheets
+            .getActiveWorksheet()
+            .getRangeByIndexes(
+              startRow,
+              13,
+              rowsToRead,
+              1
+            );
+
+
+        nameAccountRange.load("text");
+
+        noteRange.load("text");
+
+
+        await context.sync();
+
+
+        const nameAccountValues =
+          nameAccountRange.text;
+
+
+        const noteValues =
+          noteRange.text;
+
+
+        // ==================================================
+        // دمج B:C مع N
+        // ==================================================
+
+        for (
+          let i = 0;
+          i < rowsToRead;
+          i++
+        ) {
+
+          const row = [
+
+            nameAccountValues[i]?.[0] ?? "",
+
+            nameAccountValues[i]?.[1] ?? "",
+
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+
+            noteValues[i]?.[0] ?? ""
+
+          ];
+
+
+          // الرقم الحقيقي للصف
+          const actualRowIndex =
+            startRow + i;
+
+
+          addRowToIndex(
+            row,
+            actualRowIndex
+          );
+        }
+
+
+        // ==================================================
+        // تحديث الحالة
+        // ==================================================
+
+        const current =
+          Math.min(
+            startRow + rowsToRead,
+            MAX_ROWS
+          );
+
+
+        resultDiv.innerText =
+          `🔄 جاري قراءة البيانات... ${current.toLocaleString()} / ${MAX_ROWS.toLocaleString()}`;
+
+      }
 
 
       // ==================================================
-      // B إلى N
-      //
-      // B = row[0] الاسم
-      // C = row[1] الحساب
-      // N = row[12] الملاحظة
+      // بدء البحث
       // ==================================================
 
-      const range =
-        sheet.getRange(
-          "B1:N50000"
-        );
+      resultDiv.innerText =
+        "🔍 جاري البحث...";
 
 
-      range.load("text");
+      let output = "";
 
-      await context.sync();
-
-
-      const values =
-        range.text;
-
-
-      // ==================================================
-      // بناء الفهارس
-      // ==================================================
-
-      buildIndex(values);
+      let foundCount = 0;
 
 
       // ==================================================
@@ -603,26 +679,72 @@ async function searchAccount() {
             findAccountRows(acc);
 
 
-          if (rows.length > 0) {
+          if (
+            rows.length > 0
+          ) {
 
 
             for (
               const rowIndex of rows
             ) {
 
+              // نقرأ الصف المطلوب فقط
+              // B:N
+
+              const resultRange =
+                context
+                  .workbook
+                  .worksheets
+                  .getActiveWorksheet()
+                  .getRangeByIndexes(
+                    rowIndex,
+                    1,
+                    1,
+                    13
+                  );
+
+
+              resultRange.load("text");
+
+              await context.sync();
+
+
               const row =
-                values[rowIndex];
+                resultRange.text[0];
 
 
-              const item =
-                addResult(
-                  row,
-                  "موجود"
-                );
+              const name =
+                row[0] ?? "";
+
+
+              const account =
+                row[1] ?? "";
+
+
+              const note =
+                row[12] ?? "";
+
+
+              const item = {
+
+                name: name,
+
+                account: account,
+
+                note: note,
+
+                status: "موجود"
+
+              };
+
+
+              resultsData.push(item);
 
 
               output +=
-                formatResult(item);
+                `👤 ${name}\n` +
+                `📌 ${account}\n` +
+                `📝 ${note}\n\n`;
 
 
               foundCount++;
@@ -632,7 +754,7 @@ async function searchAccount() {
           } else {
 
 
-            const item = {
+            resultsData.push({
 
               name: "",
 
@@ -641,10 +763,8 @@ async function searchAccount() {
               note: "",
 
               status: "غير موجود"
-            };
 
-
-            resultsData.push(item);
+            });
 
 
             output +=
@@ -670,29 +790,69 @@ async function searchAccount() {
             nameIndex[cleanName] || [];
 
 
-          if (rows.length > 0) {
+          if (
+            rows.length > 0
+          ) {
 
 
             for (
               const rowIndex of rows
             ) {
 
-              // نقرأ نفس الصف
-              // وبالتالي الملاحظة صحيحة 100%
+              const resultRange =
+                context
+                  .workbook
+                  .worksheets
+                  .getActiveWorksheet()
+                  .getRangeByIndexes(
+                    rowIndex,
+                    1,
+                    1,
+                    13
+                  );
+
+
+              resultRange.load("text");
+
+              await context.sync();
+
 
               const row =
-                values[rowIndex];
+                resultRange.text[0];
 
 
-              const item =
-                addResult(
-                  row,
-                  "موجود"
-                );
+              const resultName =
+                row[0] ?? "";
+
+
+              const account =
+                row[1] ?? "";
+
+
+              const note =
+                row[12] ?? "";
+
+
+              const item = {
+
+                name: resultName,
+
+                account: account,
+
+                note: note,
+
+                status: "موجود"
+
+              };
+
+
+              resultsData.push(item);
 
 
               output +=
-                formatResult(item);
+                `👤 ${resultName}\n` +
+                `📌 ${account}\n` +
+                `📝 ${note}\n\n`;
 
 
               foundCount++;
@@ -702,7 +862,7 @@ async function searchAccount() {
           } else {
 
 
-            const item = {
+            resultsData.push({
 
               name: name,
 
@@ -711,10 +871,8 @@ async function searchAccount() {
               note: "",
 
               status: "غير موجود"
-            };
 
-
-            resultsData.push(item);
+            });
 
 
             output +=
@@ -742,7 +900,6 @@ async function searchAccount() {
           i++
         ) {
 
-
           const acc =
             accounts[i] || "";
 
@@ -750,8 +907,6 @@ async function searchAccount() {
           const name =
             names[i] || "";
 
-
-          // لا يمكن عمل مطابقة بدون الاثنين
 
           if (
             !acc ||
@@ -767,6 +922,7 @@ async function searchAccount() {
               note: "",
 
               status: "بيانات ناقصة"
+
             });
 
 
@@ -780,10 +936,6 @@ async function searchAccount() {
           }
 
 
-          // ==================================================
-          // البحث بالرقم
-          // ==================================================
-
           const rows =
             findAccountRows(acc);
 
@@ -792,39 +944,69 @@ async function searchAccount() {
             false;
 
 
-          // ==================================================
-          // التأكد من الاسم داخل نفس الصف
-          // ==================================================
-
           for (
             const rowIndex of rows
           ) {
 
-            const row =
-              values[rowIndex];
-
-
-            const rowName =
-              cleanValue(
-                row[0]
-              );
-
-
-            if (
-              rowName ===
-              cleanValue(name)
-            ) {
-
-
-              const item =
-                addResult(
-                  row,
-                  "موجود"
+            const resultRange =
+              context
+                .workbook
+                .worksheets
+                .getActiveWorksheet()
+                .getRangeByIndexes(
+                  rowIndex,
+                  1,
+                  1,
+                  13
                 );
 
 
+            resultRange.load("text");
+
+            await context.sync();
+
+
+            const row =
+              resultRange.text[0];
+
+
+            const rowName =
+              row[0] ?? "";
+
+
+            const rowAccount =
+              row[1] ?? "";
+
+
+            const note =
+              row[12] ?? "";
+
+
+            if (
+              cleanValue(rowName) ===
+              cleanValue(name)
+            ) {
+
+              const item = {
+
+                name: rowName,
+
+                account: rowAccount,
+
+                note: note,
+
+                status: "موجود"
+
+              };
+
+
+              resultsData.push(item);
+
+
               output +=
-                formatResult(item);
+                `👤 ${rowName}\n` +
+                `📌 ${rowAccount}\n` +
+                `📝 ${note}\n\n`;
 
 
               foundCount++;
@@ -837,13 +1019,9 @@ async function searchAccount() {
           }
 
 
-          // ==================================================
-          // غير مطابق
-          // ==================================================
-
           if (!matched) {
 
-            const item = {
+            resultsData.push({
 
               name: name,
 
@@ -852,10 +1030,8 @@ async function searchAccount() {
               note: "",
 
               status: "غير مطابق"
-            };
 
-
-            resultsData.push(item);
+            });
 
 
             output +=
@@ -870,7 +1046,7 @@ async function searchAccount() {
 
 
       // ==================================================
-      // عرض النتائج
+      // عرض النتيجة
       // ==================================================
 
       resultDiv.innerText =
@@ -898,7 +1074,7 @@ async function searchAccount() {
 
 
 // ======================================================
-// تصدير النتائج إلى Excel
+// تصدير النتائج
 // ======================================================
 
 async function exportExcel() {
@@ -924,7 +1100,7 @@ async function exportExcel() {
 
 
       // ==================================================
-      // إنشاء ورقة جديدة
+      // إنشاء ورقة التصدير
       // ==================================================
 
       const sheet =
@@ -951,7 +1127,7 @@ async function exportExcel() {
 
 
       // ==================================================
-      // البيانات
+      // إضافة النتائج
       // ==================================================
 
       resultsData.forEach(item => {
@@ -1002,14 +1178,14 @@ async function exportExcel() {
 
 
       // ==================================================
-      // ضبط عرض الأعمدة
+      // ضبط الأعمدة
       // ==================================================
 
       range.format.autofitColumns();
 
 
       // ==================================================
-      // تفعيل ورقة التصدير
+      // تفعيل الورقة
       // ==================================================
 
       sheet.activate();
@@ -1035,7 +1211,6 @@ async function exportExcel() {
         error.message ||
         "خطأ غير معروف"
       );
-
   }
 
 }
