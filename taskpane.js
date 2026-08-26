@@ -50,7 +50,7 @@ let nameIndex = {};
 let pairIndex = {};
 
 let last6Index = {};
-let last4Index = {};
+let last5Index = {};
 
 
 // =========================
@@ -77,7 +77,7 @@ function buildIndex(values) {
   pairIndex = {};
 
   last6Index = {};
-  last4Index = {};
+  last5Index = {};
 
   for (let r = 0; r < values.length; r++) {
 
@@ -151,22 +151,22 @@ function buildIndex(values) {
 
 
     // =========================
-    // آخر 4 أرقام
+    // آخر 5 أرقام
     // =========================
 
     if (
       cleanAcc &&
-      cleanAcc.length >= 4
+      cleanAcc.length >= 5
     ) {
 
-      const last4 =
-        cleanAcc.slice(-4);
+      const last5 =
+        cleanAcc.slice(-5);
 
-      if (!last4Index[last4]) {
-        last4Index[last4] = [];
+      if (!last5Index[last5]) {
+        last5Index[last5] = [];
       }
 
-      last4Index[last4].push(r);
+      last5Index[last5].push(r);
     }
 
   }
@@ -178,7 +178,7 @@ function buildIndex(values) {
 //
 // كامل
 // آخر 6
-// آخر 4
+// آخر 5
 // =========================
 
 function findAccountRows(acc) {
@@ -202,13 +202,13 @@ function findAccountRows(acc) {
 
 
   // =========================
-  // 2️⃣ البحث بآخر 4 أرقام
+  // 2️⃣ البحث بآخر 5 أرقام
   // =========================
 
-  if (cleanAcc.length === 4) {
+  if (cleanAcc.length === 5) {
 
     return (
-      last4Index[cleanAcc] || []
+      last5Index[cleanAcc] || []
     );
   }
 
@@ -226,8 +226,8 @@ function findAccountRows(acc) {
 
 
   // =========================
-  // 4️⃣ لو المستخدم كتب
-  // أكثر من 6 أرقام
+  // 4️⃣ لو الرقم أطول من 6
+  // يبحث بآخر 6 أرقام
   // =========================
 
   if (cleanAcc.length > 6) {
@@ -242,7 +242,7 @@ function findAccountRows(acc) {
 
 
   // =========================
-  // أي رقم أقل من 4
+  // أقل من 5 أرقام
   // لا يوجد بحث
   // =========================
 
